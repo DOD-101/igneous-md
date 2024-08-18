@@ -4,18 +4,26 @@ use rouille::{match_assets, start_server, Response};
 use std::{fs, thread};
 use web_view::*;
 
-const ADDRESS: &str = "localhost:2323";
-
 fn main() {
     let args = Args::parse();
-    thread::spawn(move || client(&format!("{}/{}", ADDRESS, args.path)));
+
+    // address of the server
+    let address = args.address;
+
+    let md_url = format!("{}/{}", address, args.path);
+
+    println!("Starting live-reload server on {}", md_url);
+
+    if !args.no_viewer {
+        thread::spawn(move || client(&md_url));
+    }
 
     let css = fs::read_to_string(args.css).unwrap();
 
-    println!("Starting server on {}", ADDRESS);
-
-    start_server(ADDRESS, move |request| {
-        println!("SERVER: Got request. With url: {:?}", request.url());
+    start_server(address, move |request| {
+        if !args.quiet {
+            println!("SERVER: Got request. With url: {:?}", request.url());
+        }
 
         if request.url().ends_with(".md") {
             let md = fs::read_to_string(format!(".{}", request.url()));
@@ -26,8 +34,10 @@ fn main() {
 
             let mut html = to_html_with_options(&md.unwrap(), &Options::gfm()).unwrap();
 
+            // check if any parameters where passed indicating a new client is connecting
+            // TODO: this should be reworked
             if !request.raw_query_string().is_empty() {
-                html = create_html(&css, &html);
+                html = inital_html(&css, &html);
             }
 
             if args.verbose {
@@ -65,7 +75,7 @@ fn client(addr: &str) {
     }
 }
 
-fn create_html(css: &str, body: &str) -> String {
+fn inital_html(css: &str, body: &str) -> String {
     format!(
         r#"
     <html>
@@ -74,9 +84,6 @@ fn create_html(css: &str, body: &str) -> String {
     <title>My Project</title>
     <script src="./main.js" defer></script>
     <style>
-    .markdown-body {{
-        padding: 32px;
-    }}
     {}</style>
     </head>
     <body class="markdown-body" id="body">
@@ -97,4 +104,10 @@ struct Args {
     css: String,
     #[arg(short, long, default_value = "false")]
     verbose: bool,
+    #[arg(long, default_value = "false")]
+    no_viewer: bool,
+    #[arg(short, long, default_value = "false")]
+    quiet: bool,
+    #[arg(short, long, default_value = "localhost:2323")]
+    address: String,
 }

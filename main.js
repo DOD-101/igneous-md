@@ -1,6 +1,6 @@
 setInterval(() => {
 	console.log("Fetching");
-	fetch("http://localhost:2323/hello.md")
+	fetch(`${window.location.href}?update=true`)
 		.then((response) => {
 			if (!response.ok) {
 				throw new Error("Network response was not ok");
