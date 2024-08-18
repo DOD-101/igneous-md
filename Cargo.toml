@@ -1,0 +1,10 @@
+[package]
+name = "viewer-web-view"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.16", features = ["derive"] }
+markdown = "1.0.0-alpha.20"
+rouille = "3.6.2"
+web-view = "0.7.3"
