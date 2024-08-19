@@ -34,9 +34,8 @@ fn main() {
 
             let mut html = to_html_with_options(&md.unwrap(), &Options::gfm()).unwrap();
 
-            // check if any parameters where passed indicating a new client is connecting
-            // TODO: this should be reworked
-            if !request.raw_query_string().is_empty() {
+            // if no parameters are passed send full html
+            if request.raw_query_string().is_empty() {
                 html = inital_html(&css, &html);
             }
 
@@ -61,8 +60,9 @@ fn main() {
 fn client(addr: &str) {
     println!("Starting client on {addr}");
     if web_view::builder()
+        // TODO: Update title to match future project title
         .title("My Project")
-        .content(Content::Url(format!("http://{}?init=true", addr)))
+        .content(Content::Url(format!("http://{}", addr)))
         .size(320, 480)
         .resizable(true)
         .debug(false)
