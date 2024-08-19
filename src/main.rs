@@ -1,13 +1,12 @@
 use clap::Parser;
-mod config;
-use config::*;
 use markdown::{to_html_with_options, Options};
 use rouille::{match_assets, router, start_server, Request, Response};
-use std::collections::HashMap;
-use std::fs::DirEntry;
-use std::process::exit;
-use std::{fs, thread};
+use std::{collections::HashMap, fs, process::exit, thread};
 use web_view::*;
+
+mod config;
+
+use config::*;
 
 fn main() {
     let args = Args::parse();
@@ -30,7 +29,7 @@ fn main() {
         thread::spawn(move || client(&md_url));
     }
 
-    let all_css: Vec<DirEntry> = match fs::read_dir(&config.css_dir) {
+    let all_css: Vec<fs::DirEntry> = match fs::read_dir(&config.css_dir) {
         Ok(dir) => dir
             .filter_map(|css| match css {
                 Ok(entry) => {
@@ -123,7 +122,7 @@ fn inital_html(css: &str, body: &str) -> String {
     )
 }
 
-fn get_css_path(request: &Request, all_css: &[DirEntry]) -> Response {
+fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
     let arguments =
         match serde_urlencoded::from_str::<HashMap<String, String>>(request.raw_query_string()) {
             Ok(args) if args.contains_key("n") => args.get("n").unwrap().to_owned(),
@@ -155,14 +154,31 @@ fn get_md(request: &Request, args: &Args, initial_css: &str) -> Response {
     if md.is_err() {
         return Response::html("404 Error").with_status_code(404);
     }
+    let markdown_options = Options {
+        parse: markdown::ParseOptions {
+            constructs: markdown::Constructs {
+                html_flow: true,
+                html_text: true,
+                definition: true,
+                ..markdown::Constructs::gfm()
+            },
+            ..markdown::ParseOptions::gfm()
+        },
+        compile: markdown::CompileOptions {
+            allow_dangerous_html: true,
+            ..markdown::CompileOptions::gfm()
+        },
+    };
 
-    let mut html = to_html_with_options(&md.unwrap(), &Options::gfm()).unwrap();
+    let mut html = to_html_with_options(&md.unwrap(), &markdown_options).unwrap();
 
     // if no parameters are passed send full html
     if request.raw_query_string().is_empty() {
         html = inital_html(initial_css, &html);
     }
 
+    // let html = decode_html_entities(&html);
+    // let html = html.replace("&lt;", "<").replace("&gt;", ">");
     if args.verbose {
         println!("SERVER: Sending: {html}");
     }

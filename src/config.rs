@@ -1,7 +1,6 @@
 use home::home_dir;
 use serde::Deserialize;
-use std::fs::read_to_string;
-use std::sync::OnceLock;
+use std::{fs, sync::OnceLock};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -22,7 +21,7 @@ impl Config {
     pub fn read_config() -> Self {
         let path = format!("{}/config.toml", config_path());
 
-        match read_to_string(path) {
+        match fs::read_to_string(path) {
             Ok(config) => {
                 let config_result: Result<Config, _> = toml::from_str(&config);
 
