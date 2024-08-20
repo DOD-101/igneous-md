@@ -528,6 +528,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "igneous-md"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "home",
+ "markdown",
+ "open",
+ "rouille",
+ "serde",
+ "serde_urlencoded",
+ "toml 0.8.19",
+ "web-view",
+]
+
+[[package]]
 name = "indexmap"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1241,21 +1256,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "viewer-web-view"
-version = "0.1.0"
-dependencies = [
- "clap",
- "home",
- "markdown",
- "open",
- "rouille",
- "serde",
- "serde_urlencoded",
- "toml 0.8.19",
- "web-view",
-]
 
 [[package]]
 name = "wasi"
