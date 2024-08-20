@@ -43,12 +43,11 @@ impl Config {
 }
 
 /// Returns the config path for the application
-// TODO: Update path to match future project title
 pub fn config_path() -> &'static String {
     static CONFIG_PATH: OnceLock<String> = OnceLock::new();
     CONFIG_PATH.get_or_init(|| {
         format!(
-            "{}/.config/quick-md/",
+            "{}/.config/igneous-md/",
             home_dir()
                 .expect("Couldn't find the home dir!")
                 .to_string_lossy()

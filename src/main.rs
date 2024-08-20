@@ -93,8 +93,7 @@ fn main() {
 fn client(addr: &str) {
     println!("Starting client on {addr}");
     if web_view::builder()
-        // TODO: Update title to match future project title
-        .title("My Project")
+        .title("igneous-md")
         .content(Content::Url(format!("http://{}", addr)))
         .size(320, 480)
         .resizable(true)
