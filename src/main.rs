@@ -1,3 +1,12 @@
+//! igneous-md | the simple and lightweight markdown viewer
+//!
+//! # How to use
+//!
+//! ```
+//! igneous-md --path path/to/file.md
+//! ```
+//! For more information see the usage docs.
+//!
 use clap::Parser;
 use rouille::{match_assets, router, start_server, Response};
 use std::{fs, process::exit, thread};
@@ -94,6 +103,7 @@ fn main() {
     });
 }
 
+/// Starts the markdown viewer
 fn client(addr: &str) {
     println!("Starting client on {addr}");
     if web_view::builder()
@@ -111,9 +121,10 @@ fn client(addr: &str) {
     }
 }
 
-/// igneous-md | simple and lightweight markdown viewer
+/// Struct containing all command line options
+/// For more information see [clap documentation](https://docs.rs/clap/latest/clap/index.html)
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about= "igneous-md | the simple and lightweight markdown viewer", long_about = None)]
 struct Args {
     /// Path to markdown file
     #[arg(short, long)]

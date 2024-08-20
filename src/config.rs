@@ -1,7 +1,9 @@
+//! Configuration related functionality
 use home::home_dir;
 use serde::Deserialize;
 use std::{fs, sync::OnceLock};
 
+/// Structure of the config containing all fields
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub initial_css: String,
@@ -16,6 +18,7 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Attempts to read the configuration file, if this fails it returns the default values
     pub fn read_config() -> Self {
         let path = format!("{}/config.toml", config_path());
 
@@ -53,6 +56,7 @@ pub fn config_path() -> &'static String {
     })
 }
 
+/// Returns the path to the css files
 pub fn css_path() -> &'static String {
     static CSS_PATH: OnceLock<String> = OnceLock::new();
     CSS_PATH.get_or_init(|| format!("{}/css/", config_path()))

@@ -1,10 +1,17 @@
-/// The module has the functions that handle the different incoming requests
+//! Functions for handling incoming requests
+//! None of these functions should ever panic
 use markdown::{to_html_with_options, Options};
 use rouille::{match_assets, Request, Response};
 use std::{collections::HashMap, fs};
 
 use crate::{css_path, Args};
 
+/// Returns the css file name at the requested index
+///
+/// This function works by indexing the array of all css files and returning the appropriate one.
+/// If the provided index in the url is too large it will use wrap the value around to a valid one.
+///
+/// The request must contain `?n={number}`
 pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
     let arguments =
         match serde_urlencoded::from_str::<HashMap<String, String>>(request.raw_query_string()) {
@@ -20,6 +27,7 @@ pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
     Response::text(all_css[index].path().file_name().unwrap().to_string_lossy())
 }
 
+/// Returns the requested css file if it exists
 pub fn get_css(request: &Request) -> Response {
     let response = match_assets(request, css_path());
 
@@ -31,6 +39,7 @@ pub fn get_css(request: &Request) -> Response {
     Response::html("404 Error").with_status_code(404)
 }
 
+/// Gets the markdown file, having first converted it to HTML
 pub fn get_md(request: &Request, args: &Args, initial_css: &str) -> Response {
     let md = fs::read_to_string(format!(".{}", request.url()));
 
@@ -68,6 +77,7 @@ pub fn get_md(request: &Request, args: &Args, initial_css: &str) -> Response {
     Response::html(html)
 }
 
+/// Returns the initial html, for when a client connects initially
 fn initial_html(css: &str, body: &str) -> String {
     format!(
         r#"
