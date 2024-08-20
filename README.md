@@ -4,9 +4,7 @@
 [![](https://img.shields.io/badge/Crates.io-orange?style=flat&link=https%3A%2F%2Fcrates.io%2Fcrates%2Figneous-md
 )](https://crates.io/crates/igneous-md)
 
-This is almost perfect
 > The simple and lightweight markdown viewer written in rust
-
 
 Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax) compatible markdown viewer with a focus of staying lightweight and minimal. 
 

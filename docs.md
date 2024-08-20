@@ -2,6 +2,10 @@
 
 > While Igneous-md is still in early development, it's already mostly functional.
 
+## Installing 
+
+The simplest way to install is to run `cargo install igneous-md`
+
 ## Getting started
 
 1. Make sure you have  and `webkit2gtk` installed on your system.
