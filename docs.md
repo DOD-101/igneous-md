@@ -4,16 +4,37 @@
 
 ## Getting started
 
-1. Create the config directory at `~/.config/igneous-md/`
+1. Make sure you have  and `webkit2gtk` installed on your system.
+
+2. Create the config directory at `~/.config/igneous-md/`
 <!-- TODO: Add example config.toml -->
-2. In the config directory add `config.toml` (optional) & `css/`
+3. In the config directory add `config.toml` (optional) & `css/`
 <!-- TODO: Add example css -->
-3. Add some css files in the `css/` directory. These are the files that will be used to style your markdown. 
+4. Add some css files in the `css/` directory. These are the files that will be used to style your markdown. 
 
-4. Find a markdown file you want to view and run `igneous-md --path path/to/file.md`
+5. Find a markdown file you want to view and run `igneous-md --path path/to/file.md`
 
 
-<!-- TODO: ## Integration with Neovim -->
+## Integration with Neovim
+
+This will open igneous-md every time you open a `.md` file.
+
+```lua
+local Job_ID = -1
+vim.api.nvim_create_autocmd({ "BufEnter", "BufRead", "BufNewFile" }, {
+	pattern = "*.md",
+	once = false,
+	callback = function()
+		if Job_ID ~= -1 then
+			vim.fn.jobstop(Job_ID)
+		end
+		local current_buffer_path = vim.fn.expand("%")
+		-- print(current_buffer_path)
+		Job_ID = vim.fn.jobstart({ "igneous-md", "--path", current_buffer_path })
+		-- print(Job_ID)
+	end,
+})
+```
 
 ## FAQ
 
