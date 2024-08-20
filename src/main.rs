@@ -1,10 +1,10 @@
 use clap::Parser;
-use markdown::{to_html_with_options, Options};
-use rouille::{match_assets, router, start_server, Request, Response};
-use std::{collections::HashMap, fs, process::exit, thread};
+use rouille::{match_assets, router, start_server, Response};
+use std::{fs, process::exit, thread};
 use web_view::*;
 
 mod config;
+mod handlers;
 
 use config::*;
 
@@ -39,7 +39,7 @@ fn main() {
                     Some(entry)
                 }
                 Err(error) => {
-                    println!("Could not read entries in css folder: {:#?}", error);
+                    println!("Could not read entry in css folder: {:#?}", error);
                     None
                 }
             })
@@ -56,13 +56,14 @@ fn main() {
         }
 
         router!(request,
-            (GET) (/api/get-css) => {get_css_path(request, &all_css)},
+            (GET) (/api/get-css) => {handlers::get_css_path(request, &all_css)},
             _ => {
                 if request.url().ends_with(".md") {
-                        return get_md(request, &args, &initial_css);
+                        return handlers::get_md(request, &args, &initial_css);
                 }
 
                 {
+                    // Match any assets in the current dir
                     let response = match_assets(request, ".");
 
                     if response.is_success() {
@@ -70,8 +71,13 @@ fn main() {
                     }
                 }
 
+                // if that fails check if it is a .css, in which case it is probably
+                // in the css dir
+                // TODO: This creates an issue where we might accidentally get a different
+                // stylesheet than the user wants, if they have one with the same name in
+                // the current working dir
                 if request.url().ends_with(".css") {
-                    return get_css(request, &config);
+                    return handlers::get_css(request, &config);
                 }
 
                 if !args.quiet {
@@ -100,90 +106,6 @@ fn client(addr: &str) {
     {
         println!("Couldn't start client")
     }
-}
-
-fn inital_html(css: &str, body: &str) -> String {
-    format!(
-        r#"
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset=\"utf-8\"/>
-    <title>My Project</title>
-    <script src="./main.js" defer></script>
-    <link id="stylesheet" rel="stylesheet" href="{}" />
-    </head>
-    <body class="markdown-body" id="body">
-    {}
-    </body>
-    </html>
-    "#,
-        css, body
-    )
-}
-
-fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
-    let arguments =
-        match serde_urlencoded::from_str::<HashMap<String, String>>(request.raw_query_string()) {
-            Ok(args) if args.contains_key("n") => args.get("n").unwrap().to_owned(),
-            _ => return Response::html("404 Error: Invalid URL-Parameters").with_status_code(404),
-        };
-
-    let index: usize = match arguments.parse::<usize>() {
-        Ok(num) => num % all_css.len(),
-        Err(_) => return Response::html("404 Error: Invalid URL-Parameters").with_status_code(404),
-    };
-
-    Response::text(all_css[index].path().file_name().unwrap().to_string_lossy())
-}
-
-fn get_css(request: &Request, config: &Config) -> Response {
-    let response = match_assets(request, &config.css_dir);
-
-    if response.is_success() {
-        return response;
-    }
-
-    println!("Failed to match css");
-    Response::html("404 Error").with_status_code(404)
-}
-
-fn get_md(request: &Request, args: &Args, initial_css: &str) -> Response {
-    let md = fs::read_to_string(format!(".{}", request.url()));
-
-    if md.is_err() {
-        return Response::html("404 Error").with_status_code(404);
-    }
-    let markdown_options = Options {
-        parse: markdown::ParseOptions {
-            constructs: markdown::Constructs {
-                html_flow: true,
-                html_text: true,
-                definition: true,
-                ..markdown::Constructs::gfm()
-            },
-            ..markdown::ParseOptions::gfm()
-        },
-        compile: markdown::CompileOptions {
-            allow_dangerous_html: true,
-            ..markdown::CompileOptions::gfm()
-        },
-    };
-
-    let mut html = to_html_with_options(&md.unwrap(), &markdown_options).unwrap();
-
-    // if no parameters are passed send full html
-    if request.raw_query_string().is_empty() {
-        html = inital_html(initial_css, &html);
-    }
-
-    // let html = decode_html_entities(&html);
-    // let html = html.replace("&lt;", "<").replace("&gt;", ">");
-    if args.verbose {
-        println!("SERVER: Sending: {html}");
-    }
-
-    Response::html(html)
 }
 
 #[derive(Parser, Debug)]
