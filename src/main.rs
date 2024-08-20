@@ -29,7 +29,7 @@ fn main() {
         thread::spawn(move || client(&md_url));
     }
 
-    let all_css: Vec<fs::DirEntry> = match fs::read_dir(&config.css_dir) {
+    let all_css: Vec<fs::DirEntry> = match fs::read_dir(css_path()) {
         Ok(dir) => dir
             .filter_map(|css| match css {
                 Ok(entry) => {
@@ -45,7 +45,7 @@ fn main() {
             })
             .collect(),
         Err(_) => {
-            println!("Failed to read css dir: {}", &config.css_dir);
+            println!("Failed to read css dir: {}", css_path());
             exit(1)
         }
     };
@@ -77,7 +77,7 @@ fn main() {
                 // stylesheet than the user wants, if they have one with the same name in
                 // the current working dir
                 if request.url().ends_with(".css") {
-                    return handlers::get_css(request, &config);
+                    return handlers::get_css(request);
                 }
 
                 if !args.quiet {

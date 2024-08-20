@@ -5,14 +5,12 @@ use std::{fs, sync::OnceLock};
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub initial_css: String,
-    pub css_dir: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             initial_css: "github-markdown-dark.css".to_string(),
-            css_dir: format!("{}css/", config_path()),
         }
     }
 }
@@ -28,7 +26,7 @@ impl Config {
                 match config_result {
                     Ok(config) => config,
                     Err(e) => {
-                        println!("{:?}", e);
+                        println!("Error in config {:?}", e);
                         Config::default()
                     }
                 }
@@ -53,4 +51,9 @@ pub fn config_path() -> &'static String {
                 .to_string_lossy()
         )
     })
+}
+
+pub fn css_path() -> &'static String {
+    static CSS_PATH: OnceLock<String> = OnceLock::new();
+    CSS_PATH.get_or_init(|| format!("{}/css/", config_path()))
 }

@@ -3,8 +3,7 @@ use markdown::{to_html_with_options, Options};
 use rouille::{match_assets, Request, Response};
 use std::{collections::HashMap, fs};
 
-use crate::config::Config;
-use crate::Args;
+use crate::{css_path, Args};
 
 pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
     let arguments =
@@ -21,8 +20,8 @@ pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
     Response::text(all_css[index].path().file_name().unwrap().to_string_lossy())
 }
 
-pub fn get_css(request: &Request, config: &Config) -> Response {
-    let response = match_assets(request, &config.css_dir);
+pub fn get_css(request: &Request) -> Response {
+    let response = match_assets(request, css_path());
 
     if response.is_success() {
         return response;
