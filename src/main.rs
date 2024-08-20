@@ -56,7 +56,7 @@ fn main() {
         }
 
         router!(request,
-            (GET) (/api/get-css) => {handlers::get_css_path(request, &all_css)},
+            (GET) (/api/get-css-path) => {handlers::get_css_path(request, &all_css)},
             _ => {
                 if request.url().ends_with(".md") {
                         return handlers::get_md(request, &args, &initial_css);

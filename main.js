@@ -6,21 +6,30 @@ setInterval(() => {
 			if (!response.ok) {
 				throw new Error("Network response was not ok");
 			}
-			return response.text(); // Use response.json() for JSON data
+			return response.text();
 		})
 		.then((data) => {
-			// console.log("Response received: ", data);
 			document.getElementById("body").innerHTML = data;
 		})
 		.catch((error) => console.error("Fetch error:", error));
 }, 1000);
 
 document.addEventListener("keydown", (event) => {
-	if (event.key !== "c") {
+	if (event.key === "c") {
+		nth_css++;
+		get_css(nth_css);
 		return;
 	}
-	nth_css++;
-	fetch(`${window.location.origin}/api/get-css?n=${nth_css}`)
+
+	if (event.key === "C") {
+		nth_css--;
+		get_css(nth_css);
+		return;
+	}
+});
+
+function get_css(n) {
+	fetch(`${window.location.origin}/api/get-css-path?n=${n}`)
 		.then((response) => {
 			if (!response.ok) {
 				throw new Error("Network response was not ok");
@@ -37,4 +46,4 @@ document.addEventListener("keydown", (event) => {
 			oldStyleSheet.parentNode.removeChild(oldStyleSheet);
 		})
 		.catch((error) => console.error("Fetch error:", error));
-});
+}
