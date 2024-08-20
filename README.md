@@ -1,6 +1,13 @@
 # 🌋 Igneous-md 
 
+![](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FDOD-101%2Figneous-md%2Fmaster%2FCargo.toml&query=package.version&label=Version&color=rgb(20%2C20%2C20))
+[![](https://img.shields.io/badge/Crates.io-orange?style=flat&link=https%3A%2F%2Fcrates.io%2Fcrates%2Figneous-md
+)](https://crates.io/crates/igneous-md)
+
+
+
 > The simple and lightweight markdown viewer written in rust
+
 
 Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax) compatible markdown viewer with a focus of staying lightweight and minimal. 
 
