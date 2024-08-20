@@ -7,6 +7,7 @@ edition = "2021"
 clap = { version = "4.5.16", features = ["derive"] }
 home = "0.5.9"
 markdown = "1.0.0-alpha.20"
+open = "5.3.0"
 rouille = "3.6.2"
 serde = { version = "1.0.208", features = ["derive"] }
 serde_urlencoded = "0.7.1"

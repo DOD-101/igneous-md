@@ -25,6 +25,10 @@ fn main() {
 
     println!("Starting live-reload server on {}", md_url);
 
+    if args.browser && open::that(&md_url).is_err() {
+        println!("Failed to open browser");
+    }
+
     if !args.no_viewer {
         thread::spawn(move || client(&md_url));
     }
@@ -122,4 +126,7 @@ struct Args {
     quiet: bool,
     #[arg(short, long, default_value = "localhost:2323")]
     address: String,
+    /// Open browser tab
+    #[arg(short, long, default_value = "false")]
+    browser: bool,
 }
