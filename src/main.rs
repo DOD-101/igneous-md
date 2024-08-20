@@ -111,17 +111,22 @@ fn client(addr: &str) {
     }
 }
 
+/// igneous-md | simple and lightweight markdown viewer
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
+    /// Path to markdown file
     #[arg(short, long)]
     path: String,
-    #[arg(short, long)]
+    /// Path to stylesheet
+    #[arg(short, long, value_name = "PATH")]
     css: Option<String>,
     #[arg(short, long, default_value = "false")]
     verbose: bool,
+    /// Start server without viewer
     #[arg(long, default_value = "false")]
     no_viewer: bool,
+    /// Will only print when starting server and on serious errors
     #[arg(short, long, default_value = "false")]
     quiet: bool,
     #[arg(short, long, default_value = "localhost:2323")]
