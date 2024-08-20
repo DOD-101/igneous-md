@@ -8,7 +8,7 @@ The simplest way to install is to run `cargo install igneous-md`
 
 ## Getting started
 
-1. Make sure you have  and `webkit2gtk` installed on your system.
+1. Make sure you have `webkit2gtk` installed on your system. You also need to install the `segoe-ui`-font and `apple-emoji`s for the GitHub style. 
 
 2. Create the config directory at `~/.config/igneous-md/`
 <!-- TODO: Add example config.toml -->
