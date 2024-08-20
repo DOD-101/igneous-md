@@ -1,7 +1,15 @@
 [package]
 name = "igneous-md"
+description = "The simple and lightweight markdown viewer"
 version = "0.1.0"
 edition = "2021"
+categories = ["gui", "development-tools"]
+keywords = ["markdown", "gui", "markdown-viewer", "md"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/DOD-101/igneous-md"
+authors = ["David Thievon"]
+
 
 [dependencies]
 clap = { version = "4.5.16", features = ["derive"] }
