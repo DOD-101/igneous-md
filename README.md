@@ -10,6 +10,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 ## Features 
 
+- Syntax highlighting similar to GitHub using [highlight.js](https://github.com/highlightjs/highlight.js)
 - Standalone markdown viewer outside browser
 - Switching of stylesheets on the fly
 - Ability to add custom CSS
@@ -29,7 +30,10 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [ ] Write tests
 
-- [ ] Add syntax highlighting
+- [ ] Add default css / examples
+
+- [x] Add syntax highlighting
+
 
 ## Usage
 

@@ -10,6 +10,11 @@ setInterval(() => {
 		})
 		.then((data) => {
 			document.getElementById("body").innerHTML = data;
+			hljs.configure({
+				// Stop hljs for detecting languages on code blocks with none specified
+				cssSelector: 'code[class*="language-"]',
+			});
+			hljs.highlightAll();
 		})
 		.catch((error) => console.error("Fetch error:", error));
 }, 1000);
@@ -38,10 +43,11 @@ function get_css(n) {
 		})
 		.then((data) => {
 			console.log("New Css path:", data);
-			const oldStyleSheet = document.querySelector('link[rel="stylesheet"]');
+			const oldStyleSheet = document.getElementById("md-stylesheet");
 			const newStyleSheet = document.createElement("link");
 			newStyleSheet.rel = "stylesheet";
 			newStyleSheet.href = data;
+			newStyleSheet.id = "md-stylesheet";
 			document.head.appendChild(newStyleSheet);
 			oldStyleSheet.parentNode.removeChild(oldStyleSheet);
 		})

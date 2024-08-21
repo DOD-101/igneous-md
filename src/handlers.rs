@@ -84,10 +84,11 @@ fn initial_html(css: &str, body: &str) -> String {
     <!DOCTYPE html>
     <html>
     <head>
-    <meta charset=\"utf-8\"/>
-    <title>My Project</title>
-    <script src="./src/main.js" defer></script>
-    <link id="stylesheet" rel="stylesheet" href="{}" />
+        <meta charset=\"utf-8\"/>
+        <title>My Project</title>
+        <script src="./src/highlight.min.js"></script>
+        <script src="./src/main.js" defer></script>
+        <link id="md-stylesheet" rel="stylesheet" href="{}" />
     </head>
     <body class="markdown-body" id="body">
     {}

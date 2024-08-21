@@ -46,6 +46,10 @@ fn main() {
         Ok(dir) => dir
             .filter_map(|css| match css {
                 Ok(entry) => {
+                    if entry.path().is_dir() {
+                        return None;
+                    }
+
                     if !args.quiet {
                         println!("CSS Option: {:#?}", entry);
                     }

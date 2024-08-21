@@ -59,5 +59,5 @@ pub fn config_path() -> &'static String {
 /// Returns the path to the css files
 pub fn css_path() -> &'static String {
     static CSS_PATH: OnceLock<String> = OnceLock::new();
-    CSS_PATH.get_or_init(|| format!("{}/css/", config_path()))
+    CSS_PATH.get_or_init(|| format!("{}css/", config_path()))
 }
