@@ -1,7 +1,7 @@
 [package]
 name = "igneous-md"
 description = "The simple and lightweight markdown viewer"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 categories = ["gui", "development-tools"]
 keywords = ["markdown", "gui", "markdown-viewer", "md"]
