@@ -30,7 +30,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [ ] Write tests
 
-- [ ] Add default css / examples
+- [x] Add default css / examples
 
 - [x] Add syntax highlighting
 
