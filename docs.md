@@ -21,23 +21,15 @@ The simplest way to install is to run `cargo install igneous-md`
 
 ## Integration with Neovim
 
-This will open igneous-md every time you open a `.md` file.
-
 ```lua
-local Job_ID = -1
-vim.api.nvim_create_autocmd({ "BufEnter", "BufRead", "BufNewFile" }, {
-	pattern = "*.md",
-	once = false,
-	callback = function()
-		if Job_ID ~= -1 then
-			vim.fn.jobstop(Job_ID)
-		end
-		local current_buffer_path = vim.fn.expand("%")
-		-- print(current_buffer_path)
-		Job_ID = vim.fn.jobstart({ "igneous-md", "--path", current_buffer_path })
-		-- print(Job_ID)
-	end,
-})
+local job_id = -1
+vim.keymap.set("n", "gm", function()
+	if job_id ~= -1 then
+		vim.fn.jobstop(job_id)
+	end
+	local current_buffer_path = vim.fn.expand("%")
+	job_id = vim.fn.jobstart({ "igneous-md", "--path", current_buffer_path })
+end, {})
 ```
 
 ## FAQ
