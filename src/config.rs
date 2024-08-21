@@ -1,7 +1,7 @@
 //! Configuration related functionality
 use home::home_dir;
 use serde::Deserialize;
-use std::{fs, sync::OnceLock};
+use std::{fs, path::Path, sync::OnceLock};
 
 /// Structure of the config containing all fields
 #[derive(Debug, Deserialize)]
@@ -57,7 +57,15 @@ pub fn config_path() -> &'static String {
 }
 
 /// Returns the path to the css files
+///
+/// If it cannot find the users config-dir it will return the path to the example
 pub fn css_path() -> &'static String {
     static CSS_PATH: OnceLock<String> = OnceLock::new();
-    CSS_PATH.get_or_init(|| format!("{}css/", config_path()))
+    CSS_PATH.get_or_init(|| {
+        let path = format!("{}css/", config_path());
+        if Path::new(&path).exists() {
+            return path;
+        }
+        "example/css".to_string()
+    })
 }
