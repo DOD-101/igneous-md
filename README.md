@@ -22,8 +22,6 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [ ] Fix bugs
 
-- [ ] Move from `fetch` to websockets 
-
 - [ ] Create packages
 
 - [ ] Export HTML
@@ -34,6 +32,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [x] Add syntax highlighting
 
+- [x] Move from `fetch` to websockets 
 
 ## Usage
 

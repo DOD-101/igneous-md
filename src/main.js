@@ -1,26 +1,4 @@
 let nth_css = 0;
-setInterval(() => {
-	console.log("Fetching");
-	fetch(`${window.location.href}?update=true`)
-		.then((response) => {
-			if (!response.ok) {
-				throw new Error("Network response was not ok");
-			}
-			return response.text();
-		})
-		.then((data) => {
-			// WARN: processing of the HTML only happens on the first fetch
-			// this means that for the first second the document is formatted
-			// slightly incorrectly
-			document.getElementById("body").innerHTML = processHtml(data);
-			hljs.configure({
-				// Stop hljs for detecting languages on code blocks with none specified
-				cssSelector: 'code[class*="language-"]',
-			});
-			hljs.highlightAll();
-		})
-		.catch((error) => console.error("Fetch error:", error));
-}, 1000);
 
 document.addEventListener("keydown", (event) => {
 	if (event.key === "c") {
@@ -57,7 +35,7 @@ function get_css(n) {
 		.catch((error) => console.error("Fetch error:", error));
 }
 
-function processHtml(htmlString) {
+function postProcessHtml(htmlString) {
 	const parser = new DOMParser();
 	const doc = parser.parseFromString(htmlString, "text/html");
 	const listItems = doc.querySelectorAll('li>p>input[type="checkbox"]');
@@ -74,3 +52,21 @@ function processHtml(htmlString) {
 
 	return doc.documentElement.outerHTML;
 }
+
+const socket = new WebSocket(
+	`ws://${window.location.host}/ws?path=${window.location.pathname.slice(1)}`,
+	"md-data",
+);
+
+socket.onmessage = (event) => {
+	// NOTE: post-processing of the HTML only occurs on the first ws message
+	// this means that for a few milliseconds the document is formatted
+	// slightly incorrectly
+	document.getElementById("body").innerHTML = postProcessHtml(event.data);
+	console.log("Markdown updated");
+	hljs.configure({
+		// Stop hljs for detecting languages on code blocks with none specified
+		cssSelector: 'code[class*="language-"]',
+	});
+	hljs.highlightAll();
+};

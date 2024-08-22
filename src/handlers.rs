@@ -1,8 +1,21 @@
 //! Functions for handling incoming requests
+//!
 //! None of these functions should ever panic
+
 use markdown::{to_html_with_options, Options};
-use rouille::{match_assets, Request, Response};
-use std::{collections::HashMap, fs};
+use rouille::{
+    match_assets, try_or_400,
+    websocket::{self, SendError, Websocket},
+    Request, Response,
+};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+    process::exit,
+    thread,
+    time::{Duration, SystemTime},
+};
 
 use crate::{css_path, Args};
 
@@ -39,14 +52,86 @@ pub fn get_css(request: &Request) -> Response {
     Response::html("404 Error").with_status_code(404)
 }
 
-/// Gets the markdown file, having first converted it to HTML
-pub fn get_md(request: &Request, args: &Args, initial_css: &str) -> Response {
+/// Returns the initial html converted from the md file
+///
+/// This function only gets called the first time a client requests a markdown document,
+/// any subsequent updates are handled via the websocket see `upgrade_connection`.
+pub fn get_inital_md(request: &Request, args: &Args, initial_css: &str) -> Response {
     let md = fs::read_to_string(format!(".{}", request.url()));
 
     if md.is_err() {
         return Response::html("404 Error").with_status_code(404);
     }
 
+    let mut html = md_to_html(&md.unwrap());
+
+    html = initial_html(initial_css, &html);
+
+    if args.verbose {
+        println!("SERVER: Sending: {html}");
+    }
+
+    Response::html(html)
+}
+
+/// Handles clients upgrading to websocket to receive file updates
+///
+/// This function will upgrade the connection to websocket and spawn a new thread for the
+/// connection.
+pub fn upgrade_connection(request: &Request, args: Args) -> Response {
+    let (response, websocket) = try_or_400!(websocket::start(request, Some("md-data")));
+
+    let file_path =
+        PathBuf::from(&request.raw_query_string().split('=').collect::<Vec<_>>()[1].to_string());
+
+    if !file_path.exists() || file_path.extension().unwrap_or_default() != "md" {
+        println!("Something is wrong!");
+        return Response::html("404 Error").with_status_code(404);
+    }
+
+    thread::spawn(move || {
+        // Wait until the websocket is established
+        let ws = websocket.recv().unwrap();
+
+        ws_update_md(ws, &file_path, &args)
+    });
+    response
+}
+
+/// Internal logic for the websocket
+///
+/// Checks the metadata and every time it detects a file change will send the new markdown body to
+/// the client.
+fn ws_update_md(mut websocket: Websocket, file_path: &Path, args: &Args) {
+    // TODO: In this entire function we are operating unter the assumption that the file exists,
+    // because we checked that earlier, however it could still happen that we fail to read the
+    // file, in which case this function will panic. This should be addressed in the future.
+
+    let mut last_modified = SystemTime::UNIX_EPOCH;
+    loop {
+        let modified = fs::metadata(file_path).unwrap().modified().unwrap();
+
+        if modified != last_modified {
+            last_modified = modified;
+
+            let html = md_to_html(&fs::read_to_string(file_path).unwrap());
+
+            if args.verbose {
+                println!("SERVER: Sending: {html}");
+            }
+
+            match websocket.send_text(&html) {
+                Ok(_) => (),
+                Err(SendError::Closed) => exit(0),
+                Err(e) => println!("Unexpected error in websocket send: {:#?}", e),
+            }
+        }
+        thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// Converts the given md string to html
+fn md_to_html(md: &str) -> String {
     let markdown_options = Options {
         parse: markdown::ParseOptions {
             constructs: markdown::Constructs {
@@ -63,21 +148,10 @@ pub fn get_md(request: &Request, args: &Args, initial_css: &str) -> Response {
         },
     };
 
-    let mut html = to_html_with_options(&md.unwrap(), &markdown_options).unwrap();
-
-    // if no parameters are passed send full html
-    if request.raw_query_string().is_empty() {
-        html = initial_html(initial_css, &html);
-    }
-
-    if args.verbose {
-        println!("SERVER: Sending: {html}");
-    }
-
-    Response::html(html)
+    to_html_with_options(md, &markdown_options).unwrap()
 }
 
-/// Returns the initial html, for when a client connects initially
+/// Returns the initial html, for when a client connects for the first time
 fn initial_html(css: &str, body: &str) -> String {
     format!(
         r#"

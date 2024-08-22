@@ -1,6 +1,6 @@
 //! igneous-md | the simple and lightweight markdown viewer
 //!
-//! # How to use
+//! # Usage
 //!
 //! ```
 //! igneous-md --path path/to/file.md
@@ -71,12 +71,15 @@ fn main() {
         if !args.quiet {
             println!("SERVER: Got request. With url: {:?}", request.url());
         }
-
         router!(request,
             (GET) (/api/get-css-path) => {handlers::get_css_path(request, &all_css)},
+            // TODO: Need to rework the handlers to not need the args. Since they are primarly
+            // being used to check for --verbose anyway. And logging should be moved out of these
+            // functions, if possible.
+            (GET) (/ws) => {handlers::upgrade_connection(request, Args::parse())},
             _ => {
                 if request.url().ends_with(".md") {
-                        return handlers::get_md(request, &args, &initial_css);
+                        return handlers::get_inital_md(request, &args, &initial_css);
                 }
 
                 {
