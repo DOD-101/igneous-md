@@ -9,7 +9,10 @@ setInterval(() => {
 			return response.text();
 		})
 		.then((data) => {
-			document.getElementById("body").innerHTML = data;
+			// WARN: processing of the HTML only happens on the first fetch
+			// this means that for the first second the document is formatted
+			// slightly incorrectly
+			document.getElementById("body").innerHTML = processHtml(data);
 			hljs.configure({
 				// Stop hljs for detecting languages on code blocks with none specified
 				cssSelector: 'code[class*="language-"]',
@@ -52,4 +55,22 @@ function get_css(n) {
 			oldStyleSheet.parentNode.removeChild(oldStyleSheet);
 		})
 		.catch((error) => console.error("Fetch error:", error));
+}
+
+function processHtml(htmlString) {
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(htmlString, "text/html");
+	const listItems = doc.querySelectorAll('li>p>input[type="checkbox"]');
+
+	// apply missing classes for checkbox lists
+	listItems.forEach((input) => {
+		const li = input.parentNode.parentNode;
+		const ul = li.parentNode;
+
+		li.classList.add("task-list-item");
+		input.classList.add("task-list-item-checkbox");
+		ul.classList.add("contains-task-list");
+	});
+
+	return doc.documentElement.outerHTML;
 }
