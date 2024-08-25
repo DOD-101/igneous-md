@@ -73,6 +73,7 @@ fn main() {
         }
         router!(request,
             (GET) (/api/get-css-path) => {handlers::get_css_path(request, &all_css)},
+            (POST) (/api/post-html) => {handlers::save_html(request, &Args::parse())},
             // TODO: Need to rework the handlers to not need the args. Since they are primarly
             // being used to check for --verbose anyway. And logging should be moved out of these
             // functions, if possible.

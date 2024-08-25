@@ -14,6 +14,16 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
+document.addEventListener("keydown", (event) => {
+	if (event.key === "e") {
+		post_html(document.documentElement.outerHTML);
+	}
+
+	if (event.key === "E") {
+		post_html(document.body.outerHTML);
+	}
+});
+
 function get_css(n) {
 	fetch(`${window.location.origin}/api/get-css-path?n=${n}`)
 		.then((response) => {
@@ -33,6 +43,19 @@ function get_css(n) {
 			oldStyleSheet.parentNode.removeChild(oldStyleSheet);
 		})
 		.catch((error) => console.error("Fetch error:", error));
+}
+
+function post_html(htmlString) {
+	fetch(`${window.location.origin}/api/post-html`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "text/html",
+		},
+		body: htmlString,
+	})
+		.then((response) => response.text())
+		.then((data) => console.log(data))
+		.catch((error) => console.error(error));
 }
 
 function postProcessHtml(htmlString) {

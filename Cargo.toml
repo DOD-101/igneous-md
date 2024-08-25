@@ -12,6 +12,7 @@ authors = ["David Thievon"]
 
 
 [dependencies]
+chrono = { version = "0.4.38", features = ["clock"] }
 clap = { version = "4.5.16", features = ["derive"] }
 home = "0.5.9"
 markdown = "1.0.0-alpha.20"

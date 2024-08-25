@@ -11,13 +11,14 @@ use rouille::{
 use std::{
     collections::HashMap,
     fs,
+    io::Read,
     path::{Path, PathBuf},
     process::exit,
     thread,
     time::{Duration, SystemTime},
 };
 
-use crate::{css_path, Args};
+use crate::{config_path, css_path, Args};
 
 /// Returns the css file name at the requested index
 ///
@@ -98,6 +99,40 @@ pub fn upgrade_connection(request: &Request, args: Args) -> Response {
     response
 }
 
+/// Saves the given html string to disk
+///
+/// The file is stored in the users config dir, with the name:
+/// `html-export-<year>-<month>-<day>-<hour>-<minute>-<second>.html`
+///
+/// It is possible that one file overwrites another if the user happens to press the export button
+/// twice in one second, but this should never happen in normal use.
+pub fn save_html(request: &Request, args: &Args) -> Response {
+    match request.data() {
+        Some(mut html) => {
+            let file_path = format!(
+                "{}html-export-{}.html",
+                config_path(),
+                chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
+            );
+            // Convert request.data into a String
+            let mut html_string: String = String::new();
+            if html.read_to_string(&mut html_string).is_err() {
+                return Response::html("500 Error: Failed to read html.").with_status_code(500);
+            };
+
+            if fs::write(&file_path, html_string).is_err() {
+                return Response::html("500 Error: Failed to save to file.").with_status_code(500);
+            };
+
+            if args.verbose {
+                println!("Exported html to: {}", file_path)
+            }
+
+            Response::html("Ok").with_status_code(200)
+        }
+        None => Response::html("404 Error").with_status_code(404),
+    }
+}
 /// Internal logic for the websocket
 ///
 /// Checks the metadata and every time it detects a file change will send the new markdown body to
