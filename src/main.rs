@@ -8,9 +8,10 @@
 //! For more information see the usage docs.
 //!
 use clap::Parser;
+use gtk::{prelude::*, Window, WindowType};
 use rouille::{match_assets, router, start_server, Response};
 use std::{fs, process::exit, thread};
-use web_view::*;
+use webkit2gtk::{WebView, WebViewExt};
 
 mod config;
 mod handlers;
@@ -114,19 +115,20 @@ fn main() {
 /// Starts the markdown viewer
 fn client(addr: &str) {
     println!("Starting client on {addr}");
-    if web_view::builder()
-        .title("igneous-md")
-        .content(Content::Url(format!("http://{}", addr)))
-        .size(320, 480)
-        .resizable(true)
-        .debug(false)
-        .user_data(())
-        .invoke_handler(|_webview, _arg| Ok(()))
-        .run()
-        .is_err()
-    {
-        println!("Couldn't start client")
-    }
+    gtk::init().unwrap();
+
+    let window = Window::new(WindowType::Toplevel);
+    window.set_title("igneous-md viewer");
+    window.set_default_size(800, 600);
+
+    let view = WebView::new();
+    view.load_uri(&format!("http://{addr}"));
+
+    window.add(&view);
+
+    window.show_all();
+
+    gtk::main()
 }
 
 /// Struct containing all command line options
