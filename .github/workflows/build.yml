@@ -27,7 +27,7 @@ jobs:
     - name: Install dependencies for macos
       if: matrix.os == 'macos-latest'
       run: |
-        brew install webkit2gtk
+        brew install webkitgtk
     
     - uses: actions/checkout@v4
     - name: Build
