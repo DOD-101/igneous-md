@@ -18,13 +18,15 @@ jobs:
         rust: [stable]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-
     - name: Install dependencies
       run: |
           if [ "${matrix.os}" == "ubuntu-latest" ]; then
             sudo apt update
             sudo apt-get install -y libwebkit2gtk-4.1-dev
           fi
+    
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --verbose
+
+
