@@ -1,0 +1,31 @@
+name: Linux Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        rust: [stable]
+
+    steps:
+    - name: Install dependencies for ubuntu
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+            sudo apt-get update
+            sudo apt-get install -y libwebkit2gtk-4.1-dev
+    
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --verbose
+
+
