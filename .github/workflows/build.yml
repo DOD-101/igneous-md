@@ -18,11 +18,16 @@ jobs:
         rust: [stable]
 
     steps:
-    - name: Install dependencies
+    - name: Install dependencies for ubuntu
       if: matrix.os == 'ubuntu-latest'
       run: |
             sudo apt-get update
             sudo apt-get install -y libwebkit2gtk-4.1-dev
+
+    - name: Install dependencies for macos
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install webkit2gtk
     
     - uses: actions/checkout@v4
     - name: Build
