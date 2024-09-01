@@ -26,8 +26,8 @@ Simply copy one of the given CSS files and change whatever you want. If you want
 
 | Key | Description                  |
 | --- | ---------------------------- |
-| `c` | Go to next colorscheme       |
-| `C` | Go to previous colorscheme   |
+| `c` | Go to next color scheme      |
+| `C` | Go to previous color scheme  |
 | `e` | Export html                  |
 | `E` | Export html ( `<body>` only) |
 
@@ -51,3 +51,12 @@ end, {})
 1. How do I view my markdown in the browser?
 
    Simply pass the `--browser` flag. For all options run `igneous-md --help`
+
+2. How can I change the order of color schemes?
+
+   Prefix the css file names with numbers e.g:
+
+   ```
+   00_github-dark.css
+   01_github-light.css
+   ```
