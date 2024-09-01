@@ -38,6 +38,8 @@ pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
         Err(_) => return Response::html("404 Error: Invalid URL-Parameters").with_status_code(404),
     };
 
+    // Unwraping here should be safe since all_css should only contain css files
+    // If that isn't the case panicking is the best option
     Response::text(all_css[index].path().file_name().unwrap().to_string_lossy())
 }
 
@@ -58,13 +60,14 @@ pub fn get_css(request: &Request, css_dir: &str) -> Response {
 /// This function only gets called the first time a client requests a markdown document,
 /// any subsequent updates are handled via the websocket see `upgrade_connection`.
 pub fn get_inital_md(request: &Request, initial_css: &str) -> Response {
-    let md = fs::read_to_string(format!(".{}", request.url()));
-
-    if md.is_err() {
-        return Response::html("404 Error").with_status_code(404);
-    }
-
-    let mut html = md_to_html(&md.unwrap());
+    let mut html = match fs::read_to_string(format!(".{}", request.url())) {
+        Ok(md) => md_to_html(&md),
+        Err(e) => {
+            log::error!("Failed to read .md file {}", request.url());
+            log::trace!("{}", e);
+            return Response::html("404 Error").with_status_code(404);
+        }
+    };
 
     html = initial_html(initial_css, &html);
 
@@ -110,7 +113,13 @@ pub fn upgrade_connection(request: &Request) -> Response {
 
     thread::spawn(move || {
         // Wait until the websocket is established
-        let ws = websocket.recv().unwrap();
+        let ws = match websocket.recv() {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("Failed to establish websocket connection: {}", e);
+                return;
+            }
+        };
 
         ws_update_md(ws, &file_path)
     });
@@ -154,18 +163,47 @@ pub fn save_html(request: &Request) -> Response {
 /// Checks the metadata and every time it detects a file change will send the new markdown body to
 /// the client.
 fn ws_update_md(mut websocket: Websocket, file_path: &Path) {
-    // TODO: In this entire function we are operating unter the assumption that the file exists,
-    // because we checked that earlier, however it could still happen that we fail to read the
-    // file, in which case this function will panic. This should be addressed in the future.
-
     let mut last_modified = SystemTime::UNIX_EPOCH;
     loop {
-        let modified = fs::metadata(file_path).unwrap().modified().unwrap();
+        // Check if file has been modified
+        let modified = match fs::metadata(file_path) {
+            Ok(m) => match m.modified() {
+                Ok(c) => c,
+                Err(e) => {
+                    log::error!(
+                        "Error while checking if file: {} has been modified.",
+                        file_path.to_string_lossy(),
+                    );
+                    log::trace!("{}", e);
+                    exit(1)
+                }
+            },
+            Err(e) => {
+                log::error!(
+                    "Failed to get file: {} metadata.",
+                    file_path.to_string_lossy(),
+                );
+                log::trace!("{}", e);
+                exit(1)
+            }
+        };
 
         if modified != last_modified {
             last_modified = modified;
 
-            let html = md_to_html(&fs::read_to_string(file_path).unwrap());
+            let file_contents = match fs::read_to_string(file_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    log::error!(
+                        "Failed to read file: {} to string.",
+                        file_path.to_string_lossy(),
+                    );
+                    log::trace!("{}", e);
+                    exit(1)
+                }
+            };
+
+            let html = md_to_html(&file_contents);
 
             log::trace!("SERVER: Sending: {html}");
 
