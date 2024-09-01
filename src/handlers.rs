@@ -11,14 +11,14 @@ use rouille::{
 use std::{
     collections::HashMap,
     fs,
-    io::Read,
+    io::{ErrorKind, Read},
     path::{Path, PathBuf},
     process::exit,
     thread,
     time::{Duration, SystemTime},
 };
 
-use crate::{config_path, Args};
+use crate::config_path;
 
 /// Returns the css file name at the requested index
 ///
@@ -49,7 +49,7 @@ pub fn get_css(request: &Request, css_dir: &str) -> Response {
         return response;
     }
 
-    println!("Failed to match css");
+    log::warn!("Failed to match css: {}", request.url());
     Response::html("404 Error").with_status_code(404)
 }
 
@@ -57,7 +57,7 @@ pub fn get_css(request: &Request, css_dir: &str) -> Response {
 ///
 /// This function only gets called the first time a client requests a markdown document,
 /// any subsequent updates are handled via the websocket see `upgrade_connection`.
-pub fn get_inital_md(request: &Request, args: &Args, initial_css: &str) -> Response {
+pub fn get_inital_md(request: &Request, initial_css: &str) -> Response {
     let md = fs::read_to_string(format!(".{}", request.url()));
 
     if md.is_err() {
@@ -68,9 +68,7 @@ pub fn get_inital_md(request: &Request, args: &Args, initial_css: &str) -> Respo
 
     html = initial_html(initial_css, &html);
 
-    if args.verbose {
-        println!("SERVER: Sending: {html}");
-    }
+    log::trace!("SERVER: Sending: {}", html);
 
     Response::html(html)
 }
@@ -79,22 +77,42 @@ pub fn get_inital_md(request: &Request, args: &Args, initial_css: &str) -> Respo
 ///
 /// This function will upgrade the connection to websocket and spawn a new thread for the
 /// connection.
-pub fn upgrade_connection(request: &Request, args: Args) -> Response {
+pub fn upgrade_connection(request: &Request) -> Response {
     let (response, websocket) = try_or_400!(websocket::start(request, Some("md-data")));
 
+    // Get's the path from the arguments passed via the url
+    // The name of the argument is ignored entirely
     let file_path =
         PathBuf::from(&request.raw_query_string().split('=').collect::<Vec<_>>()[1].to_string());
 
-    if !file_path.exists() || file_path.extension().unwrap_or_default() != "md" {
-        println!("Something is wrong!");
-        return Response::html("404 Error").with_status_code(404);
+    if !file_path.exists() {
+        log::warn!(
+            "Failed to upgrade to websocket connection: {} Doesn't exist.",
+            file_path.to_string_lossy()
+        );
+        return Response::html(format!(
+            "404 Error: File doesn't exist: {}",
+            file_path.to_string_lossy()
+        ))
+        .with_status_code(404);
+    }
+    if file_path.extension().unwrap_or_default() != "md" {
+        log::warn!(
+            "Failed to upgrade to websocket connection: {} Is not a .md file.",
+            file_path.to_string_lossy()
+        );
+        return Response::html(format!(
+            "404 Error: File {} isn't a .md file.",
+            file_path.to_string_lossy()
+        ))
+        .with_status_code(404);
     }
 
     thread::spawn(move || {
         // Wait until the websocket is established
         let ws = websocket.recv().unwrap();
 
-        ws_update_md(ws, &file_path, &args)
+        ws_update_md(ws, &file_path)
     });
     response
 }
@@ -106,7 +124,7 @@ pub fn upgrade_connection(request: &Request, args: Args) -> Response {
 ///
 /// It is possible that one file overwrites another if the user happens to press the export button
 /// twice in one second, but this should never happen in normal use.
-pub fn save_html(request: &Request, args: &Args) -> Response {
+pub fn save_html(request: &Request) -> Response {
     match request.data() {
         Some(mut html) => {
             let file_path = format!(
@@ -124,9 +142,7 @@ pub fn save_html(request: &Request, args: &Args) -> Response {
                 return Response::html("500 Error: Failed to save to file.").with_status_code(500);
             };
 
-            if args.verbose {
-                println!("Exported html to: {}", file_path)
-            }
+            log::info!("Exported html to: {}", file_path);
 
             Response::html("Ok").with_status_code(200)
         }
@@ -137,7 +153,7 @@ pub fn save_html(request: &Request, args: &Args) -> Response {
 ///
 /// Checks the metadata and every time it detects a file change will send the new markdown body to
 /// the client.
-fn ws_update_md(mut websocket: Websocket, file_path: &Path, args: &Args) {
+fn ws_update_md(mut websocket: Websocket, file_path: &Path) {
     // TODO: In this entire function we are operating unter the assumption that the file exists,
     // because we checked that earlier, however it could still happen that we fail to read the
     // file, in which case this function will panic. This should be addressed in the future.
@@ -151,14 +167,16 @@ fn ws_update_md(mut websocket: Websocket, file_path: &Path, args: &Args) {
 
             let html = md_to_html(&fs::read_to_string(file_path).unwrap());
 
-            if args.verbose {
-                println!("SERVER: Sending: {html}");
-            }
+            log::trace!("SERVER: Sending: {html}");
 
             match websocket.send_text(&html) {
                 Ok(_) => (),
                 Err(SendError::Closed) => exit(0),
-                Err(e) => println!("Unexpected error in websocket send: {:#?}", e),
+                Err(SendError::IoError(e)) if e.kind() == ErrorKind::BrokenPipe => {
+                    log::info!("Websocket connection apears to have been closed.");
+                    return;
+                }
+                Err(e) => log::error!("Unexpected error in websocket send: {:#?}", e),
             }
         }
         thread::sleep(Duration::from_secs(1));

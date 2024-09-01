@@ -16,10 +16,12 @@ chrono = { version = "0.4.38", features = ["clock"] }
 clap = { version = "4.5.16", features = ["derive"] }
 gtk = "0.18.1"
 home = "0.5.9"
+log = "0.4.22"
 markdown = "1.0.0-alpha.20"
 open = "5.3.0"
 rouille = "3.6.2"
 serde = { version = "1.0.208", features = ["derive"] }
 serde_urlencoded = "0.7.1"
+simple_logger = "5.0.0"
 toml = "0.8.19"
 webkit2gtk = "2.0.1"

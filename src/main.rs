@@ -18,8 +18,12 @@ mod paths;
 
 use paths::{config_path, default_css_path};
 
+use simple_logger::SimpleLogger;
 fn main() {
     let args = Args::parse();
+    SimpleLogger::new().init().unwrap();
+
+    log::set_max_level(args.log_level);
 
     // address of the server
     let address = args.address.to_owned();
@@ -34,19 +38,18 @@ fn main() {
                         return None;
                     }
 
-                    if !args.quiet {
-                        println!("CSS Option: {:#?}", entry);
-                    }
+                    log::info!("CSS Option: {:#?}", entry);
+
                     Some(entry)
                 }
                 Err(error) => {
-                    println!("Could not read entry in css folder: {:#?}", error);
+                    log::warn!("Could not read entry in css folder: {:#?}", error);
                     None
                 }
             })
             .collect(),
         Err(_) => {
-            println!("Failed to read css dir: {}", css_dir);
+            log::error!("Failed to read css dir: {}", css_dir);
             exit(1)
         }
     };
@@ -61,10 +64,10 @@ fn main() {
     // localhost:port/path/to/file
     let md_url = format!("{}/{}", address, args.path);
 
-    println!("Starting live-reload server on {}", md_url);
+    log::info!("Starting live-reload server on {}", md_url);
 
     if args.browser && open::that_detached(&md_url).is_err() {
-        println!("Failed to open browser");
+        log::warn!("Failed to open browser");
     }
 
     if !args.no_viewer {
@@ -72,19 +75,14 @@ fn main() {
     }
 
     start_server(address, move |request| {
-        if !args.quiet {
-            println!("SERVER: Got request. With url: {:?}", request.url());
-        }
+        log::info!("SERVER: Got request. With url: {:?}", request.url());
         router!(request,
             (GET) (/api/get-css-path) => {handlers::get_css_path(request, &all_css)},
-            (POST) (/api/post-html) => {handlers::save_html(request, &Args::parse())},
-            // TODO: Need to rework the handlers to not need the args. Since they are primarly
-            // being used to check for --verbose anyway. And logging should be moved out of these
-            // functions, if possible.
-            (GET) (/ws) => {handlers::upgrade_connection(request, Args::parse())},
+            (POST) (/api/post-html) => {handlers::save_html(request)},
+            (GET) (/ws) => {handlers::upgrade_connection(request)},
             _ => {
                 if request.url().ends_with(".md") {
-                        return handlers::get_inital_md(request, &args, &initial_css);
+                        return handlers::get_inital_md(request, &initial_css);
                 }
 
                 {
@@ -105,10 +103,7 @@ fn main() {
                     return handlers::get_css(request, &args.css_dir);
                 }
 
-                if !args.quiet {
-                     println!("Refusing");
-                }
-
+                log::info!("Got invalid request: {:?}", request.url());
                 Response::html("404 Error").with_status_code(404)
             }
         )
@@ -117,8 +112,11 @@ fn main() {
 
 /// Starts the markdown viewer
 fn client(addr: &str) {
-    println!("Starting client on {addr}");
-    gtk::init().unwrap();
+    log::info!("Starting client on {addr}");
+    if gtk::init().is_err() {
+        log::error!("Failed to init gtk. Needed for viewer.");
+        exit(1)
+    }
 
     let window = Window::new(WindowType::Toplevel);
     window.set_title("igneous-md viewer");
@@ -150,14 +148,12 @@ struct Args {
     /// Defaults to config_dir/css, if that doesn't exist uses the example.
     #[arg(long, value_name = "PATH", default_value = &**default_css_path())]
     css_dir: String,
-    #[arg(short, long, default_value = "false")]
-    verbose: bool,
     /// Start server without viewer
     #[arg(long, default_value = "false")]
     no_viewer: bool,
     /// Will only print when starting server and on serious errors
-    #[arg(short, long, default_value = "false")]
-    quiet: bool,
+    #[arg(short, long, default_value = "Info")]
+    log_level: log::LevelFilter,
     #[arg(short, long, default_value = "localhost:2323")]
     address: String,
     /// Open browser tab
