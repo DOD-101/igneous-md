@@ -13,37 +13,19 @@ use rouille::{match_assets, router, start_server, Response};
 use std::{fs, process::exit, thread};
 use webkit2gtk::{WebView, WebViewExt};
 
-mod config;
 mod handlers;
 
-use config::*;
+mod paths;
+
+use paths::{config_path, css_path};
 
 fn main() {
     let args = Args::parse();
-    let config = Config::read_config();
 
     // address of the server
     let address = args.address.to_owned();
 
-    let initial_css = match args.css.to_owned() {
-        Some(css) => css,
-        None => config.initial_css.to_owned(),
-    };
-
-    // localhost:port/path/to/file
-    let md_url = format!("{}/{}", address, args.path);
-
-    println!("Starting live-reload server on {}", md_url);
-
-    if args.browser && open::that(&md_url).is_err() {
-        println!("Failed to open browser");
-    }
-
-    if !args.no_viewer {
-        thread::spawn(move || client(&md_url));
-    }
-
-    let all_css: Vec<fs::DirEntry> = match fs::read_dir(css_path()) {
+    let mut all_css: Vec<fs::DirEntry> = match fs::read_dir(css_path()) {
         Ok(dir) => dir
             .filter_map(|css| match css {
                 Ok(entry) => {
@@ -67,6 +49,26 @@ fn main() {
             exit(1)
         }
     };
+
+    all_css.sort_by_key(|a| a.file_name());
+
+    let initial_css = match args.css.to_owned() {
+        Some(css) => css,
+        None => all_css[0].file_name().to_string_lossy().to_string(),
+    };
+
+    // localhost:port/path/to/file
+    let md_url = format!("{}/{}", address, args.path);
+
+    println!("Starting live-reload server on {}", md_url);
+
+    if args.browser && open::that_detached(&md_url).is_err() {
+        println!("Failed to open browser");
+    }
+
+    if !args.no_viewer {
+        thread::spawn(move || client(&md_url));
+    }
 
     start_server(address, move |request| {
         if !args.quiet {
