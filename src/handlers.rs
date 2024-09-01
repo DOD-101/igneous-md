@@ -18,7 +18,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::{config_path, css_path, Args};
+use crate::{config_path, Args};
 
 /// Returns the css file name at the requested index
 ///
@@ -42,8 +42,8 @@ pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
 }
 
 /// Returns the requested css file if it exists
-pub fn get_css(request: &Request) -> Response {
-    let response = match_assets(request, css_path());
+pub fn get_css(request: &Request, css_dir: &str) -> Response {
+    let response = match_assets(request, css_dir);
 
     if response.is_success() {
         return response;

@@ -14,10 +14,9 @@ use std::{fs, process::exit, thread};
 use webkit2gtk::{WebView, WebViewExt};
 
 mod handlers;
-
 mod paths;
 
-use paths::{config_path, css_path};
+use paths::{config_path, default_css_path};
 
 fn main() {
     let args = Args::parse();
@@ -25,7 +24,9 @@ fn main() {
     // address of the server
     let address = args.address.to_owned();
 
-    let mut all_css: Vec<fs::DirEntry> = match fs::read_dir(css_path()) {
+    let css_dir = &args.css_dir;
+
+    let mut all_css: Vec<fs::DirEntry> = match fs::read_dir(css_dir) {
         Ok(dir) => dir
             .filter_map(|css| match css {
                 Ok(entry) => {
@@ -45,7 +46,7 @@ fn main() {
             })
             .collect(),
         Err(_) => {
-            println!("Failed to read css dir: {}", css_path());
+            println!("Failed to read css dir: {}", css_dir);
             exit(1)
         }
     };
@@ -101,7 +102,7 @@ fn main() {
                 // stylesheet than the user wants, if they have one with the same name in
                 // the current working dir
                 if request.url().ends_with(".css") {
-                    return handlers::get_css(request);
+                    return handlers::get_css(request, &args.css_dir);
                 }
 
                 if !args.quiet {
@@ -141,9 +142,14 @@ struct Args {
     /// Path to markdown file
     #[arg(short, long)]
     path: String,
-    /// Path to stylesheet
+    /// Path to stylesheet within css dir
     #[arg(short, long, value_name = "PATH")]
     css: Option<String>,
+    /// Path to the css dir
+    ///
+    /// Defaults to config_dir/css, if that doesn't exist uses the example.
+    #[arg(long, value_name = "PATH", default_value = &**default_css_path())]
+    css_dir: String,
     #[arg(short, long, default_value = "false")]
     verbose: bool,
     /// Start server without viewer
