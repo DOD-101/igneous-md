@@ -96,9 +96,6 @@ fn main() {
 
                 // if that fails check if it is a .css, in which case it is probably
                 // in the css dir
-                // TODO: This creates an issue where we might accidentally get a different
-                // stylesheet than the user wants, if they have one with the same name in
-                // the current working dir
                 if request.url().ends_with(".css") {
                     return handlers::get_css(request, &args.css_dir);
                 }
