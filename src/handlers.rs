@@ -33,10 +33,15 @@ pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
             _ => return Response::html("404 Error: Invalid URL-Parameters").with_status_code(404),
         };
 
-    let index: usize = match arguments.parse::<usize>() {
-        Ok(num) => num % all_css.len(),
+    let index: usize = match arguments.parse::<i32>() {
+        Ok(num) if num >= 0 => (num % all_css.len() as i32) as usize,
+        // NOTE: This -1 here isn't pretty. This could potentially be improved in the future
+        Ok(num) if num < 0 => (all_css.len() as i32 + (num % all_css.len() as i32) - 1) as usize,
         Err(_) => return Response::html("404 Error: Invalid URL-Parameters").with_status_code(404),
+        _ => unreachable!(),
     };
+
+    log::debug!("Css-index: {}", index);
 
     // Unwraping here should be safe since all_css should only contain css files
     // If that isn't the case panicking is the best option
