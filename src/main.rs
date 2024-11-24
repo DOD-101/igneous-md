@@ -110,7 +110,12 @@ fn client(addr: &str) {
     window.set_title("igneous-md viewer");
     window.set_default_size(800, 600);
 
-    let view = WebView::new();
+    let context = WebContext::default().unwrap();
+    context.set_cache_model(CacheModel::DocumentViewer);
+    context.clear_cache();
+
+    let view = WebView::with_context(&context);
+
     view.load_uri(&format!("http://{addr}"));
 
     window.add(&view);
