@@ -1,6 +1,6 @@
 //! Paths for the application
 use home::home_dir;
-use std::{path::Path, sync::OnceLock};
+use std::sync::OnceLock;
 
 /// Returns the config path for the application
 pub fn config_path() -> &'static String {
@@ -22,9 +22,6 @@ pub fn default_css_path() -> &'static String {
     static CSS_PATH: OnceLock<String> = OnceLock::new();
     CSS_PATH.get_or_init(|| {
         let path = format!("{}css/", config_path());
-        if Path::new(&path).exists() {
-            return path;
-        }
-        "example/css".to_string()
+        path
     })
 }
