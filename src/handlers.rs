@@ -45,19 +45,21 @@ pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
 
     // Unwraping here should be safe since all_css should only contain css files
     // If that isn't the case panicking is the best option
-    Response::text(all_css[index].path().file_name().unwrap().to_string_lossy())
+    Response::text(format!(
+        "/css/{}",
+        all_css[index].path().file_name().unwrap().to_string_lossy()
+    ))
 }
 
 /// Returns the requested css file if it exists
 pub fn get_css(request: &Request, css_dir: &str) -> Response {
-    let response = match_assets(request, css_dir);
+    let response = match_assets(&request.remove_prefix("/css").unwrap(), css_dir);
 
-    if response.is_success() {
-        return response;
+    if response.is_error() {
+        log::warn!("Failed to match css: {}", request.url());
     }
 
-    log::warn!("Failed to match css: {}", request.url());
-    Response::html("404 Error").with_status_code(404)
+    response
 }
 
 /// Returns the initial html converted from the md file
@@ -258,7 +260,7 @@ fn initial_html(css: &str, body: &str) -> String {
         <title>My Project</title>
         <script src="./src/highlight.min.js"></script>
         <script src="./src/main.js" defer></script>
-        <link id="md-stylesheet" rel="stylesheet" href="{}" />
+        <link id="md-stylesheet" rel="stylesheet" href="/css/{}" />
     </head>
     <body class="markdown-body" id="body">
     {}

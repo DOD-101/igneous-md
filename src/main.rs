@@ -31,10 +31,10 @@ fn main() {
     let address = args.address.to_owned();
 
     // dir of the css files
-    let css_dir = &args.css_dir;
+    let css_dir = args.css_dir.clone();
 
     // all css files in that dir
-    let all_css = get_all_css(css_dir);
+    let all_css = get_all_css(&css_dir);
 
     // the first css file to load
     let initial_css = match args.css.to_owned() {
@@ -66,9 +66,11 @@ fn main() {
     start_server(address, move |request| {
         log::info!("SERVER: Got request. With url: {:?}", request.url());
         router!(request,
-            (GET) ["/src/highlight.min.js"] => {Response::text(hljs_src)},
-            (GET) ["/src/main.js"] => {Response::text(js_src)},
+            (GET) ["/src/main.js"] => {Response::from_data("text/javascript", js_src)},
+            (GET) ["/src/highlight.min.js"] => {Response::from_data("text/javascript", hljs_src)},
             (GET) ["/api/get-css-path"] => {handlers::get_css_path(request, &all_css)},
+            (GET) ["/css/{_path}", _path: String] => {handlers::get_css(request, &css_dir)},
+            (GET) ["/css/hljs/{_path}", _path: String] => {handlers::get_css(request, &css_dir)},
             (POST) ["/api/post-html"] => {handlers::save_html(request)},
             (GET) ["/ws"] => {handlers::upgrade_connection(request)},
             _ => {
@@ -83,12 +85,6 @@ fn main() {
                     if response.is_success() {
                         return response;
                     }
-                }
-
-                // if that fails check if it is a .css, in which case it is probably
-                // in the css dir
-                if request.url().ends_with(".css") {
-                    return handlers::get_css(request, &args.css_dir);
                 }
 
                 log::info!("Got invalid request: {:?}", request.url());

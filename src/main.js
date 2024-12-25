@@ -58,6 +58,7 @@ function post_html(htmlString) {
 		.catch((error) => console.error(error));
 }
 
+// TODO: Remove this entire post-processing
 function postProcessHtml(htmlString) {
 	const parser = new DOMParser();
 	const doc = parser.parseFromString(htmlString, "text/html");
