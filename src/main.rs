@@ -115,7 +115,6 @@ fn main() {
 #[command(version, about= "igneous-md | the simple and lightweight markdown viewer", long_about = None)]
 struct Args {
     /// Path to markdown file
-    #[arg(short, long)]
     path: String,
     /// Path to stylesheet within css dir
     #[arg(short, long, value_name = "PATH")]
