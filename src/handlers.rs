@@ -2,6 +2,7 @@
 //!
 //! None of these functions should ever panic
 
+use kuchikiki::traits::*;
 use markdown::{to_html_with_options, Options};
 use rouille::{
     match_assets, try_or_400,
@@ -45,6 +46,8 @@ pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
 
     // Unwraping here should be safe since all_css should only contain css files
     // If that isn't the case panicking is the best option
+
+    // TODO: Verify that that ^ is true
     Response::text(format!(
         "/css/{}",
         all_css[index].path().file_name().unwrap().to_string_lossy()
@@ -67,6 +70,8 @@ pub fn get_css(request: &Request, css_dir: &str) -> Response {
 /// This function only gets called the first time a client requests a markdown document,
 /// any subsequent updates are handled via the websocket see `upgrade_connection`.
 pub fn get_inital_md(request: &Request, initial_css: &str) -> Response {
+    // WARN: This seems like it might cause problems. This would also be
+    // a good place for using Path rather than strings
     let mut html = match fs::read_to_string(format!(".{}", request.url())) {
         Ok(md) => md_to_html(&md),
         Err(e) => {
@@ -246,7 +251,54 @@ fn md_to_html(md: &str) -> String {
         },
     };
 
-    to_html_with_options(md, &markdown_options).unwrap()
+    post_process_html(to_html_with_options(md, &markdown_options).unwrap())
+}
+
+fn post_process_html(html: String) -> String {
+    // Parse the HTML string into a DOM tree
+    let document = kuchikiki::parse_html().one(html);
+
+    // Find elements matching the selector
+    let matching_elements = document
+        .select("li>p>input[type=\"checkbox\"]")
+        .expect("The selector is hard-coded.");
+
+    for element in matching_elements {
+        let checkbox = element.as_node();
+        let li = checkbox
+            .parent()
+            .expect("The selector determines that these exist")
+            .parent()
+            .expect("The selector determines that these exist");
+        let ul = li
+            .parent()
+            .expect("The selector determines that these exist");
+
+        if let Some(checkbox_data) = checkbox.as_element() {
+            let mut attributes = checkbox_data.attributes.borrow_mut();
+
+            attributes.insert("class".to_string(), "task-list-item-checkbox".to_string());
+        }
+
+        if let Some(li_data) = li.as_element() {
+            let mut attributes = li_data.attributes.borrow_mut();
+
+            attributes.insert("class".to_string(), "task-list-item".to_string());
+        }
+
+        if let Some(ul_data) = ul.as_element() {
+            let mut attributes = ul_data.attributes.borrow_mut();
+
+            attributes.insert("class".to_string(), "contains-task-list".to_string());
+        }
+    }
+
+    // Serialize the modified DOM back to HTML
+    let mut output = Vec::new();
+    document
+        .serialize(&mut output)
+        .expect("Serialization should never fail. All we did was add some classes.");
+    String::from_utf8(output).expect("Converting to valid output should never fail.")
 }
 
 /// Returns the initial html, for when a client connects for the first time

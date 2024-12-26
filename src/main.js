@@ -58,25 +58,6 @@ function post_html(htmlString) {
 		.catch((error) => console.error(error));
 }
 
-// TODO: Remove this entire post-processing
-function postProcessHtml(htmlString) {
-	const parser = new DOMParser();
-	const doc = parser.parseFromString(htmlString, "text/html");
-	const listItems = doc.querySelectorAll('li>p>input[type="checkbox"]');
-
-	// apply missing classes for checkbox lists
-	listItems.forEach((input) => {
-		const li = input.parentNode.parentNode;
-		const ul = li.parentNode;
-
-		li.classList.add("task-list-item");
-		input.classList.add("task-list-item-checkbox");
-		ul.classList.add("contains-task-list");
-	});
-
-	return doc.documentElement.outerHTML;
-}
-
 const socket = new WebSocket(
 	`ws://${window.location.host}/ws?path=${window.location.pathname.slice(1)}`,
 	"md-data",
@@ -86,7 +67,7 @@ socket.onmessage = (event) => {
 	// NOTE: post-processing of the HTML only occurs on the first ws message
 	// this means that for a few milliseconds the document is formatted
 	// slightly incorrectly
-	document.getElementById("body").innerHTML = postProcessHtml(event.data);
+	document.getElementById("body").innerHTML = event.data;
 	console.log("Markdown updated");
 	hljs.configure({
 		// Stop hljs for detecting languages on code blocks with none specified
