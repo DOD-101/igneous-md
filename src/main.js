@@ -1,15 +1,11 @@
-let nth_css = 0;
-
 document.addEventListener("keydown", (event) => {
 	if (event.key === "c") {
-		nth_css++;
-		get_css(nth_css);
+		get_css("next");
 		return;
 	}
 
 	if (event.key === "C") {
-		nth_css--;
-		get_css(nth_css);
+		get_css("prev");
 		return;
 	}
 });
@@ -24,8 +20,8 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
-function get_css(n) {
-	fetch(`${window.location.origin}/api/get-css-path?n=${n}`)
+function get_css(direction) {
+	fetch(`${window.location.origin}/api/get-css-path/${direction}`)
 		.then((response) => {
 			if (!response.ok) {
 				throw new Error("Network response was not ok");
@@ -64,9 +60,6 @@ const socket = new WebSocket(
 );
 
 socket.onmessage = (event) => {
-	// NOTE: post-processing of the HTML only occurs on the first ws message
-	// this means that for a few milliseconds the document is formatted
-	// slightly incorrectly
 	document.getElementById("body").innerHTML = event.data;
 	console.log("Markdown updated");
 	hljs.configure({

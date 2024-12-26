@@ -10,7 +10,6 @@ use rouille::{
     Request, Response,
 };
 use std::{
-    collections::HashMap,
     fs,
     io::{ErrorKind, Read},
     path::{Path, PathBuf},
@@ -19,39 +18,22 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::config_path;
+use crate::{config::Config, config_path};
 
-/// Returns the css file name at the requested index
-///
-/// This function works by indexing the array of all css files and returning the appropriate one.
-/// If the provided index in the url is too large it will use wrap the value around to a valid one.
-///
-/// The request must contain `?n={number}`
-pub fn get_css_path(request: &Request, all_css: &[fs::DirEntry]) -> Response {
-    let arguments =
-        match serde_urlencoded::from_str::<HashMap<String, String>>(request.raw_query_string()) {
-            Ok(args) if args.contains_key("n") => args.get("n").unwrap().to_owned(),
-            _ => return Response::html("404 Error: Invalid URL-Parameters").with_status_code(404),
-        };
+/// Gets the next style-sheet from the given Config
+pub fn get_next_css_path(config: &mut Config) -> Response {
+    match config.next_css() {
+        Some(css) => Response::text(css.to_string_lossy()),
+        None => Response::html("No css files found").with_status_code(501),
+    }
+}
 
-    let index: usize = match arguments.parse::<i32>() {
-        Ok(num) if num >= 0 => (num % all_css.len() as i32) as usize,
-        // NOTE: This -1 here isn't pretty. This could potentially be improved in the future
-        Ok(num) if num < 0 => (all_css.len() as i32 + (num % all_css.len() as i32) - 1) as usize,
-        Err(_) => return Response::html("404 Error: Invalid URL-Parameters").with_status_code(404),
-        _ => unreachable!(),
-    };
-
-    log::debug!("Css-index: {}", index);
-
-    // Unwraping here should be safe since all_css should only contain css files
-    // If that isn't the case panicking is the best option
-
-    // TODO: Verify that that ^ is true
-    Response::text(format!(
-        "/css/{}",
-        all_css[index].path().file_name().unwrap().to_string_lossy()
-    ))
+/// Gets the previous style-sheet from the given Config
+pub fn get_prev_css_path(config: &mut Config) -> Response {
+    match config.previous_css() {
+        Some(css) => Response::text(css.to_string_lossy()),
+        None => Response::html("No css files found").with_status_code(501),
+    }
 }
 
 /// Returns the requested css file if it exists
@@ -312,7 +294,7 @@ fn initial_html(css: &str, body: &str) -> String {
         <title>My Project</title>
         <script src="./src/highlight.min.js"></script>
         <script src="./src/main.js" defer></script>
-        <link id="md-stylesheet" rel="stylesheet" href="/css/{}" />
+        <link id="md-stylesheet" rel="stylesheet" href="{}" />
     </head>
     <body class="markdown-body" id="body">
     {}
