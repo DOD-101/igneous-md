@@ -54,10 +54,7 @@ function post_html(htmlString) {
 		.catch((error) => console.error(error));
 }
 
-const socket = new WebSocket(
-	`ws://${window.location.host}/ws?path=${window.location.pathname.slice(1)}`,
-	"md-data",
-);
+const socket = new WebSocket(`ws://${window.location.host}/ws`, "md-data");
 
 socket.onmessage = (event) => {
 	document.getElementById("body").innerHTML = event.data;

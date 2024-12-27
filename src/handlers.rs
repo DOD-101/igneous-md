@@ -1,7 +1,6 @@
 //! Functions for handling incoming requests
 //!
 //! None of these functions should ever panic
-
 use kuchikiki::traits::*;
 use markdown::{to_html_with_options, Options};
 use rouille::{
@@ -12,13 +11,13 @@ use rouille::{
 use std::{
     fs,
     io::{ErrorKind, Read},
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::exit,
     thread,
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
-use crate::{config::Config, config_path};
+use crate::{client::Client, config::Config, config_path};
 
 /// Gets the next style-sheet from the given Config
 pub fn get_next_css_path(config: &mut Config) -> Response {
@@ -74,36 +73,10 @@ pub fn get_inital_md(request: &Request, initial_css: &str) -> Response {
 ///
 /// This function will upgrade the connection to websocket and spawn a new thread for the
 /// connection.
-pub fn upgrade_connection(request: &Request) -> Response {
+pub fn upgrade_connection(request: &Request, md: PathBuf) -> Response {
     let (response, websocket) = try_or_400!(websocket::start(request, Some("md-data")));
 
-    // Get's the path from the arguments passed via the url
-    // The name of the argument is ignored entirely
-    let file_path =
-        PathBuf::from(&request.raw_query_string().split('=').collect::<Vec<_>>()[1].to_string());
-
-    if !file_path.exists() {
-        log::warn!(
-            "Failed to upgrade to websocket connection: {} Doesn't exist.",
-            file_path.to_string_lossy()
-        );
-        return Response::html(format!(
-            "404 Error: File doesn't exist: {}",
-            file_path.to_string_lossy()
-        ))
-        .with_status_code(404);
-    }
-    if file_path.extension().unwrap_or_default() != "md" {
-        log::warn!(
-            "Failed to upgrade to websocket connection: {} Is not a .md file.",
-            file_path.to_string_lossy()
-        );
-        return Response::html(format!(
-            "404 Error: File {} isn't a .md file.",
-            file_path.to_string_lossy()
-        ))
-        .with_status_code(404);
-    }
+    let client = Client::new(md);
 
     thread::spawn(move || {
         // Wait until the websocket is established
@@ -115,7 +88,7 @@ pub fn upgrade_connection(request: &Request) -> Response {
             }
         };
 
-        ws_update_md(ws, &file_path)
+        ws_update_md(ws, client)
     });
     response
 }
@@ -152,66 +125,41 @@ pub fn save_html(request: &Request) -> Response {
         None => Response::html("404 Error").with_status_code(404),
     }
 }
+
 /// Internal logic for the websocket
 ///
 /// Checks the metadata and every time it detects a file change will send the new markdown body to
 /// the client.
-fn ws_update_md(mut websocket: Websocket, file_path: &Path) {
-    let mut last_modified = SystemTime::UNIX_EPOCH;
+fn ws_update_md(mut websocket: Websocket, mut client: Client) {
+    let mut error_count: u8 = 0;
     loop {
-        // Check if file has been modified
-        let modified = match fs::metadata(file_path) {
-            Ok(m) => match m.modified() {
-                Ok(c) => c,
-                Err(e) => {
-                    log::error!(
-                        "Error while checking if file: {} has been modified.",
-                        file_path.to_string_lossy(),
-                    );
-                    log::trace!("{}", e);
-                    exit(1)
+        thread::sleep(Duration::from_secs(1));
+
+        if error_count > 10 {
+            log::error!("Too many errors, closing websocket connection.");
+            return;
+        }
+
+        match client.get_latest_html_if_changed() {
+            Ok(html) => {
+                if let Some(html) = html {
+                    log::trace!("SERVER: Sending: {html}");
+                    match websocket.send_text(&html) {
+                        Ok(_) => (),
+                        Err(SendError::Closed) => exit(0),
+                        Err(SendError::IoError(e)) if e.kind() == ErrorKind::BrokenPipe => {
+                            log::info!("Websocket connection apears to have been closed.");
+                            return;
+                        }
+                        Err(e) => log::error!("Unexpected error in websocket send: {:#?}", e),
+                    }
                 }
-            },
-            Err(e) => {
-                log::error!(
-                    "Failed to get file: {} metadata.",
-                    file_path.to_string_lossy(),
-                );
-                log::trace!("{}", e);
-                exit(1)
             }
-        };
-
-        if modified != last_modified {
-            last_modified = modified;
-
-            let file_contents = match fs::read_to_string(file_path) {
-                Ok(c) => c,
-                Err(e) => {
-                    log::error!(
-                        "Failed to read file: {} to string.",
-                        file_path.to_string_lossy(),
-                    );
-                    log::trace!("{}", e);
-                    exit(1)
-                }
-            };
-
-            let html = md_to_html(&file_contents);
-
-            log::trace!("SERVER: Sending: {html}");
-
-            match websocket.send_text(&html) {
-                Ok(_) => (),
-                Err(SendError::Closed) => exit(0),
-                Err(SendError::IoError(e)) if e.kind() == ErrorKind::BrokenPipe => {
-                    log::info!("Websocket connection apears to have been closed.");
-                    return;
-                }
-                Err(e) => log::error!("Unexpected error in websocket send: {:#?}", e),
+            Err(e) => {
+                log::error!("Failed to get latest html: {:#?}", e);
+                error_count += 1;
             }
         }
-        thread::sleep(Duration::from_secs(1));
     }
 }
 

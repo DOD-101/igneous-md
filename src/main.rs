@@ -16,6 +16,7 @@ use simple_logger::SimpleLogger;
 mod bidirectional_cycle;
 mod client;
 mod config;
+mod convert;
 mod handlers;
 mod paths;
 
@@ -74,6 +75,10 @@ fn main() {
     let hljs_src = include_str!("./highlight.min.js");
     let js_src = include_str!("./main.js");
 
+    // TODO: Add a check here for if the path exists
+    // IT would also be nice if this didn't need to be a mutex
+    let default_path = Mutex::new(PathBuf::from(args.path));
+
     start_server(address, move |request| {
         log::info!("SERVER: Got request. With url: {:?}", request.url());
         router!(request,
@@ -87,7 +92,7 @@ fn main() {
             (GET) ["/css/{_path}", _path: String] => {handlers::get_css(request, config.lock().unwrap().get_css_dir().to_str().unwrap())},
             (GET) ["/css/hljs/{_path}", _path: String] => {handlers::get_css(request, config.lock().unwrap().get_css_dir().to_str().unwrap())},
             (POST) ["/api/post-html"] => {handlers::save_html(request)},
-            (GET) ["/ws"] => {handlers::upgrade_connection(request)},
+            (GET) ["/ws"] => {handlers::upgrade_connection(request, default_path.lock().unwrap().to_path_buf())},
             _ => {
                 if request.url().ends_with(".md") {
                         return handlers::get_inital_md(request, &initial_css);

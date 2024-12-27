@@ -25,4 +25,5 @@ serde = { version = "1.0.208", features = ["derive"] }
 serde_urlencoded = "0.7.1"
 simple_logger = "5.0.0"
 toml = "0.8.19"
+uuid = { version = "1.11.0", features = ["v4"] }
 webkit2gtk = "2.0.1"
