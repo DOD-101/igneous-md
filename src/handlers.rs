@@ -3,94 +3,126 @@
 //! None of these functions should ever panic
 use kuchikiki::traits::*;
 use markdown::{to_html_with_options, Options};
-use rouille::{
-    match_assets, try_or_400,
-    websocket::{self, SendError, Websocket},
-    Request, Response,
+use rocket::{
+    futures::{SinkExt, StreamExt},
+    http::Status,
+    response::content::*,
+    tokio::{
+        select,
+        time::{self, Duration},
+    },
+    State,
 };
-use std::{
-    fs,
-    io::{ErrorKind, Read},
-    path::PathBuf,
-    process::exit,
-    thread,
-    time::Duration,
-};
+use rocket_ws::{Channel, Message, WebSocket};
+use std::{fs, path::PathBuf, sync::Mutex};
 
 use crate::{client::Client, config::Config, config_path};
 
-/// Gets the next style-sheet from the given Config
-pub fn get_next_css_path(config: &mut Config) -> Response {
-    match config.next_css() {
-        Some(css) => Response::text(css.to_string_lossy()),
-        None => Response::html("No css files found").with_status_code(501),
-    }
-}
-
+#[get("/api/get-css-path/next")]
 /// Gets the previous style-sheet from the given Config
-pub fn get_prev_css_path(config: &mut Config) -> Response {
-    match config.previous_css() {
-        Some(css) => Response::text(css.to_string_lossy()),
-        None => Response::html("No css files found").with_status_code(501),
-    }
+pub fn get_next_css_path(config: &State<Mutex<Config>>) -> Option<String> {
+    let mut config = config.lock().unwrap();
+    config.next_css().map(|p| p.to_string_lossy().to_string())
 }
 
-/// Returns the requested css file if it exists
-pub fn get_css(request: &Request, css_dir: &str) -> Response {
-    let response = match_assets(&request.remove_prefix("/css").unwrap(), css_dir);
+#[get("/api/get-css-path/prev")]
+/// Gets the previous style-sheet from the given Config
+pub fn get_prev_css_path(config: &State<Mutex<Config>>) -> Option<String> {
+    let mut config = config.lock().unwrap();
+    config
+        .previous_css()
+        .map(|p| p.to_string_lossy().to_string())
+}
 
-    if response.is_error() {
-        log::warn!("Failed to match css: {}", request.url());
-    }
+#[get("/src/main.js")]
+pub fn serve_main_js() -> RawJavaScript<&'static str> {
+    RawJavaScript(include_str!("./main.js"))
+}
 
-    response
+#[get("/src/highlight.min.js")]
+pub fn serve_highlight_js() -> RawJavaScript<&'static str> {
+    RawJavaScript(include_str!("./highlight.min.js"))
 }
 
 /// Returns the initial html converted from the md file
 ///
 /// This function only gets called the first time a client requests a markdown document,
 /// any subsequent updates are handled via the websocket see `upgrade_connection`.
-pub fn get_inital_md(request: &Request, initial_css: &str) -> Response {
-    // WARN: This seems like it might cause problems. This would also be
-    // a good place for using Path rather than strings
-    let mut html = match fs::read_to_string(format!(".{}", request.url())) {
+///
+//  TODO: This function is just bad. The path makes it conflict with everything else.
+#[get("/<file..>", rank = 2)]
+pub fn get_inital_md(file: PathBuf, config: &State<Mutex<Config>>) -> Option<RawHtml<String>> {
+    let mut html = match fs::read_to_string(file.clone()) {
         Ok(md) => md_to_html(&md),
         Err(e) => {
-            log::error!("Failed to read .md file {}", request.url());
+            log::error!("Failed to read .md file {}", file.to_string_lossy());
             log::trace!("{}", e);
-            return Response::html("404 Error").with_status_code(404);
+            return None;
         }
     };
 
-    html = initial_html(initial_css, &html);
+    let config = config.lock().unwrap();
+
+    html = initial_html(
+        &config.current_css().unwrap_or("".into()).to_string_lossy(),
+        &html,
+    );
 
     log::trace!("SERVER: Sending: {}", html);
 
-    Response::html(html)
+    Some(RawHtml(html))
 }
 
 /// Handles clients upgrading to websocket to receive file updates
 ///
 /// This function will upgrade the connection to websocket and spawn a new thread for the
 /// connection.
-pub fn upgrade_connection(request: &Request, md: PathBuf) -> Response {
-    let (response, websocket) = try_or_400!(websocket::start(request, Some("md-data")));
+#[get("/ws/<path..>")]
+pub async fn upgrade_connection(ws: WebSocket, path: PathBuf) -> Channel<'static> {
+    let mut client = Client::new(PathBuf::from(".").join(path));
 
-    let client = Client::new(md);
+    // Set up the WebSocket channel using Rocket's channel method
+    ws.channel(move |mut stream| Box::pin(async move {
+        let mut interval = time::interval(Duration::from_secs(1));
+        loop {
 
-    thread::spawn(move || {
-        // Wait until the websocket is established
-        let ws = match websocket.recv() {
-            Ok(s) => s,
-            Err(e) => {
-                log::warn!("Failed to establish websocket connection: {}", e);
-                return;
+            // Use tokio::select! to handle both incoming messages and broadcast messages
+            select! {
+                _ = interval.tick()=> {
+                    if let Ok(Some(html)) = client.get_latest_html_if_changed() {
+                        log::info!("Sending new html");
+                        let _ = stream.send(Message::Text(html)).await;
+                    }
+                }
+
+                // Handle incoming messages from the client
+                incoming = stream.next() => {
+                    match incoming {
+                        Some(Ok(message)) => {
+                            match message {
+                                Message::Text(client_message) => {
+                                    println!("Received message from client: {}", client_message);
+                                    // Here you could add your own logic to process client messages
+                                }
+                                Message::Close(_) => {
+                                    println!("Client initiated connection close");
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                        Some(Err(e)) => {
+                            println!("Error receiving message: {}", e);
+                            break;
+                        }
+                        None => break,
+                    }
+                }
             }
-        };
+        }
 
-        ws_update_md(ws, client)
-    });
-    response
+Ok(())
+}))
 }
 
 /// Saves the given html string to disk
@@ -100,67 +132,23 @@ pub fn upgrade_connection(request: &Request, md: PathBuf) -> Response {
 ///
 /// It is possible that one file overwrites another if the user happens to press the export button
 /// twice in one second, but this should never happen in normal use.
-pub fn save_html(request: &Request) -> Response {
-    match request.data() {
-        Some(mut html) => {
-            let file_path = format!(
-                "{}html-export-{}.html",
-                config_path(),
-                chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
-            );
-            // Convert request.data into a String
-            let mut html_string: String = String::new();
-            if html.read_to_string(&mut html_string).is_err() {
-                return Response::html("500 Error: Failed to read html.").with_status_code(500);
-            };
 
-            if fs::write(&file_path, html_string).is_err() {
-                return Response::html("500 Error: Failed to save to file.").with_status_code(500);
-            };
+#[post("/api/post-html", data = "<body_data>")]
+pub async fn save_html(body_data: String) -> Result<(), Status> {
+    // Save the HTML string to a file
+    let file_path = format!(
+        "{}html-export-{}.html",
+        config_path(),
+        chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
+    );
 
-            log::info!("Exported html to: {}", file_path);
-
-            Response::html("Ok").with_status_code(200)
-        }
-        None => Response::html("404 Error").with_status_code(404),
+    if std::fs::write(&file_path, body_data).is_err() {
+        return Err(Status::InternalServerError); // Handle file save errors
     }
-}
 
-/// Internal logic for the websocket
-///
-/// Checks the metadata and every time it detects a file change will send the new markdown body to
-/// the client.
-fn ws_update_md(mut websocket: Websocket, mut client: Client) {
-    let mut error_count: u8 = 0;
-    loop {
-        thread::sleep(Duration::from_secs(1));
+    log::info!("Exported HTML to: {}", file_path);
 
-        if error_count > 10 {
-            log::error!("Too many errors, closing websocket connection.");
-            return;
-        }
-
-        match client.get_latest_html_if_changed() {
-            Ok(html) => {
-                if let Some(html) = html {
-                    log::trace!("SERVER: Sending: {html}");
-                    match websocket.send_text(&html) {
-                        Ok(_) => (),
-                        Err(SendError::Closed) => exit(0),
-                        Err(SendError::IoError(e)) if e.kind() == ErrorKind::BrokenPipe => {
-                            log::info!("Websocket connection apears to have been closed.");
-                            return;
-                        }
-                        Err(e) => log::error!("Unexpected error in websocket send: {:#?}", e),
-                    }
-                }
-            }
-            Err(e) => {
-                log::error!("Failed to get latest html: {:#?}", e);
-                error_count += 1;
-            }
-        }
-    }
+    Ok(())
 }
 
 /// Converts the given md string to html

@@ -13,6 +13,7 @@ pub struct Config {
     css_dir: PathBuf,
     css_iter: Option<BiCycle<IntoIter<PathBuf>>>,
     css_paths: Vec<PathBuf>,
+    curent_css: Option<PathBuf>,
 }
 
 impl Config {
@@ -24,10 +25,15 @@ impl Config {
             css_dir,
             css_iter: None,
             css_paths: vec![],
+            curent_css: None,
         };
 
         config.update_css_paths()?;
         config.css_iter = Some(config.css_paths.clone().into_iter().bi_cycle());
+
+        if !config.css_paths.is_empty() {
+            config.next_css();
+        }
 
         log::info!("{:?}", config.css_paths);
 
@@ -36,26 +42,39 @@ impl Config {
 
     pub fn next_css(&mut self) -> Option<PathBuf> {
         if let Some(iter) = &mut self.css_iter {
-            return iter.next().map(|p| {
+            let css = iter.next().map(|p| {
                 p.strip_prefix(self.config_dir.clone())
                     .unwrap()
                     .to_path_buf()
             });
+
+            self.curent_css = css.clone();
+
+            return css;
         }
         None
     }
 
     pub fn previous_css(&mut self) -> Option<PathBuf> {
         if let Some(iter) = &mut self.css_iter {
-            return iter.next_back().map(|p| {
+            let css = iter.next_back().map(|p| {
                 p.strip_prefix(self.config_dir.clone())
                     .unwrap()
                     .to_path_buf()
             });
+
+            self.curent_css = css.clone();
+
+            return css;
         }
         None
     }
 
+    pub fn current_css(&self) -> Option<PathBuf> {
+        self.curent_css.clone()
+    }
+
+    #[allow(dead_code)]
     pub fn get_css_dir(&self) -> &PathBuf {
         &self.css_dir
     }

@@ -7,11 +7,14 @@
 //! ```
 //! For more information see the usage docs.
 //!
-use std::{path::PathBuf, sync::Mutex, thread};
+
+#[macro_use]
+extern crate rocket;
 
 use clap::Parser;
-use rouille::{match_assets, router, start_server, Response};
+use rocket::{fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
+use std::{path::PathBuf, process::exit, sync::Mutex, thread};
 
 mod bidirectional_cycle;
 mod client;
@@ -20,18 +23,17 @@ mod convert;
 mod handlers;
 mod paths;
 
+use handlers::*;
 use paths::config_path;
 
-use std::process::exit;
-
-fn main() {
+#[launch]
+fn rocket() -> Rocket<Build> {
     let args = Args::parse();
-    SimpleLogger::new().init().unwrap();
 
-    log::set_max_level(args.log_level);
-
-    // address of the server
-    let address = args.address.to_owned();
+    SimpleLogger::new()
+        .with_level(args.log_level)
+        .init()
+        .unwrap();
 
     let config_dir = PathBuf::from(config_path());
 
@@ -48,17 +50,9 @@ fn main() {
         }
     });
 
-    let initial_css = config
-        .lock()
-        .unwrap()
-        .next_css()
-        .map(|path| path.to_string_lossy().to_string()) // Convert PathBuf to String
-        .unwrap_or_else(String::new) // Default to an empty string if None
-        .replace(config_dir.to_str().unwrap(), ""); // Replace config_dir if necessary
-
     // The url of the md file, in the format:
     // localhost:port/path/to/file
-    let md_url = format!("{}/{}", address, args.path);
+    let md_url = format!("localhost:{}/{}", args.port, args.path);
 
     log::info!("Starting live-reload server on {}", md_url);
 
@@ -72,46 +66,27 @@ fn main() {
         thread::spawn(move || client.start());
     }
 
-    let hljs_src = include_str!("./highlight.min.js");
-    let js_src = include_str!("./main.js");
+    let css_dir = config.lock().unwrap().get_css_dir().clone();
 
-    // TODO: Add a check here for if the path exists
-    // IT would also be nice if this didn't need to be a mutex
-    let default_path = Mutex::new(PathBuf::from(args.path));
-
-    start_server(address, move |request| {
-        log::info!("SERVER: Got request. With url: {:?}", request.url());
-        router!(request,
-            (GET) ["/src/main.js"] => {Response::from_data("text/javascript", js_src)},
-            (GET) ["/src/highlight.min.js"] => {Response::from_data("text/javascript", hljs_src)},
-            // WARN: Currently all Clients share the same config, which means that if one changes
-            // the style sheet it will affect all others next style sheet as well. This needs to be
-            // addressed before the next release.
-            (GET) ["/api/get-css-path/next"] => {handlers::get_next_css_path(&mut config.lock().unwrap())},
-            (GET) ["/api/get-css-path/prev"] => {handlers::get_prev_css_path(&mut config.lock().unwrap())},
-            (GET) ["/css/{_path}", _path: String] => {handlers::get_css(request, config.lock().unwrap().get_css_dir().to_str().unwrap())},
-            (GET) ["/css/hljs/{_path}", _path: String] => {handlers::get_css(request, config.lock().unwrap().get_css_dir().to_str().unwrap())},
-            (POST) ["/api/post-html"] => {handlers::save_html(request)},
-            (GET) ["/ws"] => {handlers::upgrade_connection(request, default_path.lock().unwrap().to_path_buf())},
-            _ => {
-                if request.url().ends_with(".md") {
-                        return handlers::get_inital_md(request, &initial_css);
-                }
-
-                {
-                    // Match any assets in the current dir
-                    let response = match_assets(request, ".");
-
-                    if response.is_success() {
-                        return response;
-                    }
-                }
-
-                log::info!("Got invalid request: {:?}", request.url());
-                Response::html("404 Error").with_status_code(404)
-            }
+    rocket::build()
+        .configure(rocket::Config {
+            port: args.port,
+            ..rocket::Config::default()
+        })
+        .manage(config)
+        .mount("/css", FileServer::from(css_dir).rank(1))
+        .mount(
+            "/",
+            routes![
+                get_next_css_path,
+                get_prev_css_path,
+                serve_main_js,
+                serve_highlight_js,
+                get_inital_md,
+                upgrade_connection,
+                save_html
+            ],
         )
-    });
 }
 
 /// Struct containing all command line options
@@ -122,6 +97,7 @@ struct Args {
     /// Path to markdown file
     path: String,
     /// Path to stylesheet within css dir
+    // TODO: This doesn't work rn
     #[arg(short, long, value_name = "PATH")]
     css: Option<String>,
     /// Start server without viewer
@@ -130,8 +106,9 @@ struct Args {
     /// Will only print when starting server and on serious errors
     #[arg(short, long, default_value = "Info")]
     log_level: log::LevelFilter,
-    #[arg(short, long, default_value = "localhost:2323")]
-    address: String,
+    /// Port to run the server on
+    #[arg(short, long, default_value = "2323")]
+    port: u16,
     /// Open browser tab
     #[arg(short, long, default_value = "false")]
     browser: bool,
