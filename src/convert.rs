@@ -92,8 +92,8 @@ pub fn initial_html(css: &str, body: &str) -> String {
     <!DOCTYPE html>
     <html>
     <head>
-        <meta charset=\"utf-8\"/>
-        <title>My Project</title>
+        <meta charset="utf-8"/>
+        <title>Igneous-md</title>
         <script src="./src/highlight.min.js"></script>
         <script src="./src/main.js" defer></script>
         <link id="md-stylesheet" rel="stylesheet" href="{}" />

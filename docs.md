@@ -29,7 +29,6 @@ Simply copy one of the given CSS files and change whatever you want. If you want
 | `c` | Go to next color scheme      |
 | `C` | Go to previous color scheme  |
 | `e` | Export html                  |
-| `E` | Export html ( `<body>` only) |
 
 ## Integration with Neovim
 
@@ -43,6 +42,12 @@ vim.keymap.set("n", "gm", function()
 	job_id = vim.fn.jobstart({ "igneous-md", "--path", current_buffer_path })
 end, {})
 ```
+
+## Converting html to md 
+
+Igneous-md allows you to quickly convert your `.md` files to html: 
+
+`igneous-md <PATH> [options] convert`
 
 ## FAQ
 

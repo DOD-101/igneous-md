@@ -1,10 +1,10 @@
 //! Functions for handling incoming requests
 //!
 //! None of these functions should ever panic
-use rocket::{http::Status, response::content::*, State};
+use rocket::{response::content::*, State};
 use std::{fs, sync::Mutex};
 
-use crate::{config::Config, config_path, convert::initial_html, convert::md_to_html};
+use crate::{config::Config, convert::initial_html, convert::md_to_html};
 
 mod ws;
 pub use ws::upgrade_connection;
@@ -45,29 +45,4 @@ pub fn get_inital_md(path: &str, config: &State<Mutex<Config>>) -> Option<RawHtm
     log::trace!("SERVER: Sending: {}", html);
 
     Some(RawHtml(html))
-}
-
-/// Saves the given html string to disk
-///
-/// The file is stored in the users config dir, with the name:
-/// `html-export-<year>-<month>-<day>-<hour>-<minute>-<second>.html`
-///
-/// It is possible that one file overwrites another if the user happens to press the export button
-/// twice in one second, but this should never happen in normal use.
-#[post("/api/post-html", data = "<body_data>")]
-pub async fn save_html(body_data: String) -> Result<(), Status> {
-    // Save the HTML string to a file
-    let file_path = format!(
-        "{}html-export-{}.html",
-        config_path(),
-        chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
-    );
-
-    if std::fs::write(&file_path, body_data).is_err() {
-        return Err(Status::InternalServerError); // Handle file save errors
-    }
-
-    log::info!("Exported HTML to: {}", file_path);
-
-    Ok(())
 }

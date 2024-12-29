@@ -54,7 +54,6 @@ impl Client {
         self.md_path.clone()
     }
 
-    #[allow(dead_code)]
     pub fn get_html(&self) -> String {
         self.html.clone()
     }

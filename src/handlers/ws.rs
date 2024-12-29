@@ -10,7 +10,7 @@ use rocket::{
 use rocket_ws::{Channel, Message, WebSocket};
 use std::{io, path::PathBuf};
 
-use crate::client::Client;
+use crate::{client::Client, export::export};
 
 #[derive(Deserialize)]
 struct ClientMsg {
@@ -21,6 +21,7 @@ struct ClientMsg {
 enum ClientMsgType {
     ChangeCssNext,
     ChangeCssPrev,
+    ExportHtml,
 }
 
 #[derive(Serialize)]
@@ -29,10 +30,28 @@ struct ServerMsg {
     body: String,
 }
 
+impl ServerMsg {
+    fn success() -> Self {
+        Self {
+            r#type: ServerMsgType::Success,
+            body: String::new(),
+        }
+    }
+
+    fn error(msg: String) -> Self {
+        Self {
+            r#type: ServerMsgType::Error,
+            body: msg,
+        }
+    }
+}
+
 #[derive(Serialize)]
 enum ServerMsgType {
     CssUpdate,
     HtmlUpdate,
+    Success,
+    Error,
 }
 
 /// Handles clients upgrading to websocket to receive file updates
@@ -132,6 +151,13 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
             ServerMsg {
                 r#type: ServerMsgType::CssUpdate,
                 body: path.to_string_lossy().to_string(),
+            }
+        }
+        ClientMsgType::ExportHtml => {
+            if let Err(e) = export(client.get_html(), None) {
+                ServerMsg::error(e.to_string())
+            } else {
+                ServerMsg::success()
             }
         }
     }

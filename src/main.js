@@ -20,11 +20,11 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("keydown", (event) => {
 	if (event.key === "e") {
-		post_html(document.documentElement.outerHTML);
-	}
-
-	if (event.key === "E") {
-		post_html(document.body.outerHTML);
+		socket.send(
+			JSON.stringify({
+				type: "ExportHtml",
+			}),
+		);
 	}
 });
 
@@ -37,19 +37,6 @@ function update_css(css_path) {
 	newStyleSheet.id = "md-stylesheet";
 	document.head.appendChild(newStyleSheet);
 	oldStyleSheet.parentNode.removeChild(oldStyleSheet);
-}
-
-function post_html(htmlString) {
-	fetch(`${window.location.origin}/api/post-html`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "text/html",
-		},
-		body: htmlString,
-	})
-		.then((response) => response.text())
-		.then((data) => console.log(data))
-		.catch((error) => console.error(error));
 }
 
 const url = new URL(window.location.href);

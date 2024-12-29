@@ -11,15 +11,16 @@
 #[macro_use]
 extern crate rocket;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use rocket::{fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
-use std::{path::PathBuf, process::exit, sync::Mutex, thread};
+use std::{fs, path::PathBuf, process::exit, sync::Mutex, thread};
 
 mod bidirectional_cycle;
 mod client;
 mod config;
 mod convert;
+mod export;
 mod handlers;
 mod paths;
 
@@ -40,6 +41,21 @@ fn rocket() -> Rocket<Build> {
     // TODO: It might be nice for the user to be able to stop this
     if !config_dir.exists() && config::generate_config(&config_dir.join("css")).is_err() {
         log::error!("Failed to create default config.");
+    }
+
+    if let Some(Action::Convert { export_path }) = args.command {
+        let html = convert::md_to_html(&fs::read_to_string(args.path.clone()).unwrap());
+        if export::export(
+            convert::initial_html(&args.css.unwrap_or(String::new()), &html),
+            export_path.map(PathBuf::from),
+        )
+        .is_err()
+        {
+            log::error!("Failed to export md.");
+            exit(1);
+        }
+
+        exit(0);
     }
 
     let config = Mutex::new(match config::Config::new(config_dir.clone()) {
@@ -82,7 +98,6 @@ fn rocket() -> Rocket<Build> {
                 serve_highlight_js,
                 get_inital_md,
                 upgrade_connection,
-                save_html
             ],
         )
 }
@@ -92,6 +107,8 @@ fn rocket() -> Rocket<Build> {
 #[derive(Parser, Debug)]
 #[command(version, about= "igneous-md | the simple and lightweight markdown viewer", long_about = None)]
 struct Args {
+    #[command(subcommand)]
+    command: Option<Action>,
     /// Path to markdown file
     path: String,
     /// Path to stylesheet within css dir
@@ -102,6 +119,7 @@ struct Args {
     #[arg(long, default_value = "false")]
     no_viewer: bool,
     /// Will only print when starting server and on serious errors
+    // TODO: Setup rocket to use this
     #[arg(short, long, default_value = "Info")]
     log_level: log::LevelFilter,
     /// Port to run the server on
@@ -110,4 +128,14 @@ struct Args {
     /// Open browser tab
     #[arg(short, long, default_value = "false")]
     browser: bool,
+}
+
+/// Actions other than launching the server to view markdown
+#[derive(Debug, Subcommand)]
+enum Action {
+    /// Convert a md to html and save it to disk
+    Convert {
+        #[arg(short, long, value_name = "PATH")]
+        export_path: Option<String>,
+    },
 }
