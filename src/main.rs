@@ -56,11 +56,13 @@ fn rocket() -> Rocket<Build> {
         args.css.map(|p| PathBuf::from("/css").join(p)),
     );
 
-    // TODO: It might be nice for the user to be able to stop this
-    if !default_config_path().exists()
-        && config::generate_config(&default_config_path().join("css")).is_err()
+    #[cfg(feature = "generate_config")]
     {
-        log::error!("Failed to create default config.");
+        if !default_config_path().exists()
+            && config::generate_config(&default_config_path().join("css")).is_err()
+        {
+            log::error!("Failed to create default config.");
+        }
     }
 
     // The url of the md file, in the format:
@@ -82,6 +84,11 @@ fn rocket() -> Rocket<Build> {
     }
 
     let css_dir = paths.get_css_dir();
+
+    if !css_dir.exists() {
+        log::error!("Css dir: {} doesn't exist. Exiting.", css_dir.display());
+        exit(1);
+    }
 
     rocket::build()
         .configure(rocket::Config {
@@ -135,7 +142,7 @@ struct Args {
 /// Actions other than launching the server to view markdown
 #[derive(Debug, Subcommand)]
 enum Action {
-    /// Convert a md to html and save it to disk
+    /// Convert a md file to html and save it to disk
     Convert {
         #[arg(short, long, value_name = "PATH")]
         export_path: Option<PathBuf>,

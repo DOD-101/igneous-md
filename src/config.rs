@@ -1,9 +1,7 @@
-use std::{
-    fs, io,
-    io::Write,
-    path::{Path, PathBuf},
-    vec::IntoIter,
-};
+use std::{fs, io, path::PathBuf, vec::IntoIter};
+
+#[cfg(feature = "generate_config")]
+use std::{io::Write, path::Path};
 
 use crate::{
     bidirectional_cycle::{BiCyclable, BiCycle},
@@ -118,6 +116,7 @@ impl Config {
 /// Creates the css files on disk
 ///
 /// Used if there is no config found at the config path
+#[cfg(feature = "generate_config")]
 pub fn generate_config(css_dir: &Path) -> io::Result<()> {
     fs::create_dir_all(css_dir.join(Path::new("hljs")))?;
 
