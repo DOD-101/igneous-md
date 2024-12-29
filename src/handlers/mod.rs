@@ -2,9 +2,13 @@
 //!
 //! None of these functions should ever panic
 use rocket::{response::content::*, State};
-use std::{fs, sync::Mutex};
+use std::fs;
 
-use crate::{config::Config, convert::initial_html, convert::md_to_html};
+use crate::{
+    config::Config,
+    convert::{initial_html, md_to_html},
+    paths::Paths,
+};
 
 mod ws;
 pub use ws::upgrade_connection;
@@ -25,7 +29,7 @@ pub fn serve_highlight_js() -> RawJavaScript<&'static str> {
 /// any subsequent updates are handled via the websocket see `upgrade_connection`.
 ///
 #[get("/?<path>", rank = 2)]
-pub fn get_inital_md(path: &str, config: &State<Mutex<Config>>) -> Option<RawHtml<String>> {
+pub fn get_inital_md(path: &str, paths: &State<Paths>) -> Option<RawHtml<String>> {
     let mut html = match fs::read_to_string(path) {
         Ok(md) => md_to_html(&md),
         Err(e) => {
@@ -35,12 +39,9 @@ pub fn get_inital_md(path: &str, config: &State<Mutex<Config>>) -> Option<RawHtm
         }
     };
 
-    let config = config.lock().unwrap();
+    let config = Config::new(paths.inner().clone()).ok()?;
 
-    html = initial_html(
-        &config.current_css().unwrap_or("".into()).to_string_lossy(),
-        &html,
-    );
+    html = initial_html(&config.current_css()?.to_string_lossy(), &html);
 
     log::trace!("SERVER: Sending: {}", html);
 

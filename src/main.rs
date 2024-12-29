@@ -14,7 +14,7 @@ extern crate rocket;
 use clap::{Parser, Subcommand};
 use rocket::{fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
-use std::{fs, path::PathBuf, process::exit, sync::Mutex, thread};
+use std::{fs, path::PathBuf, process::exit, thread};
 
 mod bidirectional_cycle;
 mod client;
@@ -25,7 +25,7 @@ mod handlers;
 mod paths;
 
 use handlers::*;
-use paths::config_path;
+use paths::{default_config_path, Paths};
 
 #[launch]
 fn rocket() -> Rocket<Build> {
@@ -36,17 +36,10 @@ fn rocket() -> Rocket<Build> {
         .init()
         .unwrap();
 
-    let config_dir = PathBuf::from(config_path());
-
-    // TODO: It might be nice for the user to be able to stop this
-    if !config_dir.exists() && config::generate_config(&config_dir.join("css")).is_err() {
-        log::error!("Failed to create default config.");
-    }
-
     if let Some(Action::Convert { export_path }) = args.command {
         let html = convert::md_to_html(&fs::read_to_string(args.path.clone()).unwrap());
         if export::export(
-            convert::initial_html(&args.css.unwrap_or(String::new()), &html),
+            convert::initial_html(args.css.unwrap_or(PathBuf::new()).to_str().unwrap(), &html),
             export_path.map(PathBuf::from),
         )
         .is_err()
@@ -58,17 +51,25 @@ fn rocket() -> Rocket<Build> {
         exit(0);
     }
 
-    let config = Mutex::new(match config::Config::new(config_dir.clone()) {
-        Ok(config) => config,
-        Err(e) => {
-            log::error!("Failed to create config: {:#?}", e);
-            exit(1)
-        }
-    });
+    let paths = Paths::new(
+        args.css_dir.unwrap_or(default_config_path().join("css")),
+        args.css.map(|p| PathBuf::from("/css").join(p)),
+    );
+
+    // TODO: It might be nice for the user to be able to stop this
+    if !default_config_path().exists()
+        && config::generate_config(&default_config_path().join("css")).is_err()
+    {
+        log::error!("Failed to create default config.");
+    }
 
     // The url of the md file, in the format:
     // localhost:port/path/to/file
-    let md_url = format!("localhost:{}/?path={}", args.port, args.path);
+    let md_url = format!(
+        "localhost:{}/?path={}",
+        args.port,
+        args.path.to_string_lossy()
+    );
 
     if args.browser && open::that_detached(&md_url).is_err() {
         log::warn!("Failed to open browser");
@@ -80,15 +81,14 @@ fn rocket() -> Rocket<Build> {
         thread::spawn(move || client.start());
     }
 
-    let css_dir = config_dir.join("css");
+    let css_dir = paths.get_css_dir();
 
     rocket::build()
         .configure(rocket::Config {
             port: args.port,
             ..rocket::Config::default()
         })
-        .manage(config)
-        .manage(PathBuf::from(config_path()))
+        .manage(paths)
         .mount("/css", FileServer::from(css_dir).rank(1))
         .mount("/", FileServer::from("."))
         .mount(
@@ -110,11 +110,13 @@ struct Args {
     #[command(subcommand)]
     command: Option<Action>,
     /// Path to markdown file
-    path: String,
+    path: PathBuf,
     /// Path to stylesheet within css dir
-    // TODO: This doesn't work rn
     #[arg(short, long, value_name = "PATH")]
-    css: Option<String>,
+    css: Option<PathBuf>,
+    /// Path to alternate css dir
+    #[arg(long, value_name = "PATH")]
+    css_dir: Option<PathBuf>,
     /// Start server without viewer
     #[arg(long, default_value = "false")]
     no_viewer: bool,
@@ -136,6 +138,6 @@ enum Action {
     /// Convert a md to html and save it to disk
     Convert {
         #[arg(short, long, value_name = "PATH")]
-        export_path: Option<String>,
+        export_path: Option<PathBuf>,
     },
 }

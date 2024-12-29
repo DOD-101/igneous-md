@@ -5,7 +5,10 @@ use std::{
     vec::IntoIter,
 };
 
-use crate::bidirectional_cycle::{BiCyclable, BiCycle};
+use crate::{
+    bidirectional_cycle::{BiCyclable, BiCycle},
+    paths::Paths,
+};
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -17,36 +20,30 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(config_dir: PathBuf) -> io::Result<Self> {
-        let css_dir = config_dir.join("css");
-
+    pub fn new(paths: Paths) -> io::Result<Self> {
         let mut config = Self {
-            config_dir,
-            css_dir,
+            config_dir: paths.get_config_dir(),
+            css_dir: paths.get_css_dir(),
             css_iter: None,
             css_paths: vec![],
-            curent_css: None,
+            curent_css: paths.get_default_css(),
         };
 
         config.update_css_paths()?;
         config.css_iter = Some(config.css_paths.clone().into_iter().bi_cycle());
 
-        if !config.css_paths.is_empty() {
+        if !config.css_paths.is_empty() && config.curent_css.is_none() {
             config.next_css();
         }
-
-        log::info!("{:?}", config.css_paths);
 
         Ok(config)
     }
 
     pub fn next_css(&mut self) -> Option<PathBuf> {
         if let Some(iter) = &mut self.css_iter {
-            let css = iter.next().map(|p| {
-                p.strip_prefix(self.config_dir.clone())
-                    .unwrap()
-                    .to_path_buf()
-            });
+            let css = iter
+                .next()
+                .map(|p| PathBuf::from("/css").join(p.strip_prefix(self.css_dir.clone()).unwrap()));
 
             self.curent_css = css.clone();
 
@@ -57,11 +54,9 @@ impl Config {
 
     pub fn previous_css(&mut self) -> Option<PathBuf> {
         if let Some(iter) = &mut self.css_iter {
-            let css = iter.next_back().map(|p| {
-                p.strip_prefix(self.config_dir.clone())
-                    .unwrap()
-                    .to_path_buf()
-            });
+            let css = iter
+                .next_back()
+                .map(|p| PathBuf::from("/css").join(p.strip_prefix(self.css_dir.clone()).unwrap()));
 
             self.curent_css = css.clone();
 
@@ -70,6 +65,7 @@ impl Config {
         None
     }
 
+    #[allow(dead_code)]
     pub fn current_css(&self) -> Option<PathBuf> {
         self.curent_css.clone()
     }
@@ -94,8 +90,6 @@ impl Config {
                             return None;
                         }
 
-                        log::info!("CSS Option: {:#?}", entry);
-
                         Some(entry.path())
                     }
                     Err(error) => {
@@ -114,6 +108,8 @@ impl Config {
         all_css.sort_by_key(|a| PathBuf::from(a.file_name().unwrap()));
 
         self.css_paths = all_css;
+
+        log::info!("Updated css_paths: {:?}", self.css_paths);
 
         Ok(())
     }

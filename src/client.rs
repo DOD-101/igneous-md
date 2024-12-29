@@ -3,7 +3,7 @@ use std::{io, path::PathBuf, process::exit, time::SystemTime};
 use uuid::Uuid;
 use webkit2gtk::{CacheModel, WebContext, WebContextExt, WebView, WebViewExt};
 
-use crate::{config::Config, convert::md_to_html};
+use crate::{config::Config, convert::md_to_html, paths::Paths};
 
 #[derive(Debug)]
 pub struct Client {
@@ -22,11 +22,11 @@ pub enum MdChanged {
 }
 
 impl Client {
-    pub fn new(path: PathBuf, config_dir: PathBuf) -> io::Result<Self> {
+    pub fn new(md_path: PathBuf, paths: Paths) -> io::Result<Self> {
         Ok(Self {
             id: Uuid::new_v4(),
-            md_path: path,
-            config: Config::new(config_dir)?,
+            md_path,
+            config: Config::new(paths)?,
             html: String::new(),
             md: String::new(),
             last_modified: SystemTime::UNIX_EPOCH,

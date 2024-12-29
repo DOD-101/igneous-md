@@ -10,21 +10,21 @@ use rocket::{
 use rocket_ws::{Channel, Message, WebSocket};
 use std::{io, path::PathBuf};
 
-use crate::{client::Client, export::export};
+use crate::{client::Client, export::export, paths::Paths};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct ClientMsg {
     r#type: ClientMsgType,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 enum ClientMsgType {
     ChangeCssNext,
     ChangeCssPrev,
     ExportHtml,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct ServerMsg {
     r#type: ServerMsgType,
     body: String,
@@ -46,7 +46,7 @@ impl ServerMsg {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 enum ServerMsgType {
     CssUpdate,
     HtmlUpdate,
@@ -62,9 +62,9 @@ enum ServerMsgType {
 pub async fn upgrade_connection(
     ws: WebSocket,
     path: &str,
-    config_dir: &State<PathBuf>,
-) -> Result<Channel<'static>, io::Error> {
-    let mut client = match Client::new(PathBuf::from(".").join(path), config_dir.to_path_buf()) {
+    paths: &State<Paths>,
+) -> io::Result<Channel<'static>> {
+    let mut client = match Client::new(PathBuf::from(".").join(path), paths.inner().clone()) {
         Ok(c) => c,
         Err(e) => {
             log::error!("Failed to init client with path: {} Error: {}", path, e);
@@ -102,6 +102,9 @@ pub async fn upgrade_connection(
                                         if let Ok(client_msg) = serde_json::from_str::<ClientMsg>(&msg_string) {
 
                                             let return_msg = handle_client_msg(client_msg, &mut client);
+                                            
+                                            log::info!("Sending ws message: {:?}", return_msg);
+
                                             let _ = stream.send(
                                                 Message::Text(serde_json::to_string(&return_msg)
                                                               .expect("Failed to turn ServerMsg into json"))

@@ -1,6 +1,6 @@
 use std::{io, path::PathBuf};
 
-use crate::paths::config_path;
+use crate::paths::default_config_path;
 /// Saves the given html string to disk
 ///
 /// The file is stored in the users config dir, with the name:
@@ -16,7 +16,7 @@ pub fn export(html: String, other_path: Option<PathBuf>) -> io::Result<()> {
     );
 
     let file_path = other_path
-        .unwrap_or(PathBuf::from(config_path()))
+        .unwrap_or(PathBuf::from(default_config_path()))
         .join(file_name);
 
     std::fs::write(&file_path, html)?;
