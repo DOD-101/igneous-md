@@ -52,9 +52,7 @@ fn rocket() -> Rocket<Build> {
 
     // The url of the md file, in the format:
     // localhost:port/path/to/file
-    let md_url = format!("localhost:{}/{}", args.port, args.path);
-
-    log::info!("Starting live-reload server on {}", md_url);
+    let md_url = format!("localhost:{}/?path={}", args.port, args.path);
 
     if args.browser && open::that_detached(&md_url).is_err() {
         log::warn!("Failed to open browser");
@@ -66,7 +64,7 @@ fn rocket() -> Rocket<Build> {
         thread::spawn(move || client.start());
     }
 
-    let css_dir = config.lock().unwrap().get_css_dir().clone();
+    let css_dir = config_dir.join("css");
 
     rocket::build()
         .configure(rocket::Config {
@@ -74,12 +72,11 @@ fn rocket() -> Rocket<Build> {
             ..rocket::Config::default()
         })
         .manage(config)
+        .manage(PathBuf::from(config_path()))
         .mount("/css", FileServer::from(css_dir).rank(1))
         .mount(
             "/",
             routes![
-                get_next_css_path,
-                get_prev_css_path,
                 serve_main_js,
                 serve_highlight_js,
                 get_inital_md,

@@ -1143,6 +1143,7 @@ dependencies = [
  "rocket",
  "rocket_ws",
  "serde",
+ "serde_json",
  "serde_urlencoded",
  "simple_logger",
  "toml",

@@ -1,22 +1,19 @@
 use gtk::{prelude::*, Window, WindowType};
-use std::io;
-use std::path::PathBuf;
-use std::process::exit;
-use std::time::SystemTime;
+use std::{io, path::PathBuf, process::exit, time::SystemTime};
 use uuid::Uuid;
 use webkit2gtk::{CacheModel, WebContext, WebContextExt, WebView, WebViewExt};
 
-use crate::convert::convert;
+use crate::{config::Config, convert::md_to_html};
 
 #[derive(Debug)]
 pub struct Client {
     #[allow(dead_code)]
     id: uuid::Uuid,
-    path: PathBuf,
+    md_path: PathBuf,
     last_modified: SystemTime,
     md: String,
     html: String,
-    // config: Config,
+    pub config: Config,
 }
 
 pub enum MdChanged {
@@ -25,25 +22,25 @@ pub enum MdChanged {
 }
 
 impl Client {
-    pub fn new(path: PathBuf) -> Self {
-        Self {
+    pub fn new(path: PathBuf, config_dir: PathBuf) -> io::Result<Self> {
+        Ok(Self {
             id: Uuid::new_v4(),
-            path,
-            // config: Config::default(),
+            md_path: path,
+            config: Config::new(config_dir)?,
             html: String::new(),
             md: String::new(),
             last_modified: SystemTime::UNIX_EPOCH,
-        }
+        })
     }
 
     fn update_md(&mut self) -> io::Result<()> {
-        self.md = std::fs::read_to_string(&self.path)?;
+        self.md = std::fs::read_to_string(&self.md_path)?;
 
         Ok(())
     }
 
     pub fn changed(&self) -> io::Result<MdChanged> {
-        let last_modified = std::fs::metadata(&self.path)?.modified()?;
+        let last_modified = std::fs::metadata(&self.md_path)?.modified()?;
 
         if last_modified != self.last_modified {
             Ok(MdChanged::Changed(last_modified))
@@ -53,8 +50,8 @@ impl Client {
     }
 
     #[allow(dead_code)]
-    pub fn get_path(&self) -> PathBuf {
-        self.path.clone()
+    pub fn get_md_path(&self) -> PathBuf {
+        self.md_path.clone()
     }
 
     #[allow(dead_code)]
@@ -78,7 +75,7 @@ impl Client {
 
         self.update_md()?;
 
-        self.html = convert(&self.md);
+        self.html = md_to_html(&self.md);
 
         Ok(Some(self.html.clone()))
     }
