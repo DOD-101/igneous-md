@@ -74,6 +74,7 @@ fn rocket() -> Rocket<Build> {
         .manage(config)
         .manage(PathBuf::from(config_path()))
         .mount("/css", FileServer::from(css_dir).rank(1))
+        .mount("/", FileServer::from("."))
         .mount(
             "/",
             routes![
