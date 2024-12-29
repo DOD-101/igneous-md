@@ -5,7 +5,6 @@ use rocket::{response::content::*, State};
 use std::fs;
 
 use crate::{
-    config::Config,
     convert::{initial_html, md_to_html},
     paths::Paths,
 };
@@ -29,7 +28,7 @@ pub fn serve_highlight_js() -> RawJavaScript<&'static str> {
 /// any subsequent updates are handled via the websocket see `upgrade_connection`.
 ///
 #[get("/?<path>", rank = 2)]
-pub fn get_inital_md(path: &str, paths: &State<Paths>) -> Option<RawHtml<String>> {
+pub fn get_initial_md(path: &str, paths: &State<Paths>) -> Option<RawHtml<String>> {
     let mut html = match fs::read_to_string(path) {
         Ok(md) => md_to_html(&md),
         Err(e) => {
@@ -39,9 +38,7 @@ pub fn get_inital_md(path: &str, paths: &State<Paths>) -> Option<RawHtml<String>
         }
     };
 
-    let config = Config::new(paths.inner().clone()).ok()?;
-
-    html = initial_html(&config.current_css()?.to_string_lossy(), &html);
+    html = initial_html(&paths.get_default_css().to_string_lossy(), &html);
 
     log::trace!("SERVER: Sending: {}", html);
 

@@ -16,7 +16,6 @@ use rocket::{config::LogLevel as RocketLogLevel, fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
 use std::{fs, path::PathBuf, process::exit, str::FromStr, thread};
 
-mod bidirectional_cycle;
 mod client;
 mod config;
 mod convert;
@@ -51,10 +50,16 @@ fn rocket() -> Rocket<Build> {
         exit(0);
     }
 
-    let paths = Paths::new(
+    let paths = match Paths::new(
         args.css_dir.unwrap_or(default_config_path().join("css")),
         args.css.map(|p| PathBuf::from("/css").join(p)),
-    );
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to create Paths: {}", e);
+            exit(1)
+        }
+    };
 
     #[cfg(feature = "generate_config")]
     {
@@ -104,7 +109,7 @@ fn rocket() -> Rocket<Build> {
             routes![
                 serve_main_js,
                 serve_highlight_js,
-                get_inital_md,
+                get_initial_md,
                 upgrade_connection,
             ],
         )

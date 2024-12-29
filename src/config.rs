@@ -1,20 +1,20 @@
-use std::{fs, io, path::PathBuf, vec::IntoIter};
+use itertools::Itertools;
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 #[cfg(feature = "generate_config")]
-use std::{io::Write, path::Path};
+use std::io::Write;
 
-use crate::{
-    bidirectional_cycle::{BiCyclable, BiCycle},
-    paths::Paths,
-};
+use crate::paths::Paths;
 
 #[derive(Debug, Clone)]
 pub struct Config {
     config_dir: PathBuf,
     css_dir: PathBuf,
-    css_iter: Option<BiCycle<IntoIter<PathBuf>>>,
     css_paths: Vec<PathBuf>,
-    curent_css: Option<PathBuf>,
+    current_css_index: usize,
 }
 
 impl Config {
@@ -22,50 +22,30 @@ impl Config {
         let mut config = Self {
             config_dir: paths.get_config_dir(),
             css_dir: paths.get_css_dir(),
-            css_iter: None,
             css_paths: vec![],
-            curent_css: paths.get_default_css(),
+            current_css_index: 0,
         };
 
         config.update_css_paths()?;
-        config.css_iter = Some(config.css_paths.clone().into_iter().bi_cycle());
-
-        if !config.css_paths.is_empty() && config.curent_css.is_none() {
-            config.next_css();
-        }
 
         Ok(config)
     }
 
     pub fn next_css(&mut self) -> Option<PathBuf> {
-        if let Some(iter) = &mut self.css_iter {
-            let css = iter
-                .next()
-                .map(|p| PathBuf::from("/css").join(p.strip_prefix(self.css_dir.clone()).unwrap()));
+        self.current_css_index = (self.current_css_index + 1) % self.css_paths.len();
 
-            self.curent_css = css.clone();
-
-            return css;
-        }
-        None
+        self.css_paths.get(self.current_css_index).cloned()
     }
 
     pub fn previous_css(&mut self) -> Option<PathBuf> {
-        if let Some(iter) = &mut self.css_iter {
-            let css = iter
-                .next_back()
-                .map(|p| PathBuf::from("/css").join(p.strip_prefix(self.css_dir.clone()).unwrap()));
+        self.current_css_index = (self.current_css_index - 1) % self.css_paths.len();
 
-            self.curent_css = css.clone();
-
-            return css;
-        }
-        None
+        self.css_paths.get(self.current_css_index).cloned()
     }
 
     #[allow(dead_code)]
     pub fn current_css(&self) -> Option<PathBuf> {
-        self.curent_css.clone()
+        self.css_paths.get(self.current_css_index).cloned()
     }
 
     #[allow(dead_code)]
@@ -80,30 +60,7 @@ impl Config {
 
     /// Reads the css dir, updating self.css_paths
     pub fn update_css_paths(&mut self) -> io::Result<()> {
-        let mut all_css: Vec<PathBuf> = match fs::read_dir(self.css_dir.as_path()) {
-            Ok(dir) => dir
-                .filter_map(|css| match css {
-                    Ok(entry) => {
-                        if entry.path().is_dir() {
-                            return None;
-                        }
-
-                        Some(entry.path())
-                    }
-                    Err(error) => {
-                        log::warn!("Could not read entry in css folder: {:#?}", error);
-                        None
-                    }
-                })
-                .collect(),
-            Err(e) => {
-                log::warn!("Failed to read css dir: {}", self.css_dir.to_string_lossy());
-
-                return Err(e);
-            }
-        };
-
-        all_css.sort_by_key(|a| PathBuf::from(a.file_name().unwrap()));
+        let all_css: Vec<PathBuf> = read_css_dir(&self.css_dir)?;
 
         self.css_paths = all_css;
 
@@ -111,6 +68,32 @@ impl Config {
 
         Ok(())
     }
+}
+
+/// Will attempt to read the given `css_dir` returning only css files and sorting them
+pub fn read_css_dir(css_dir: &Path) -> io::Result<Vec<PathBuf>> {
+    Ok(fs::read_dir(css_dir)?
+        .filter_map(|possible_entry| {
+            let path = possible_entry.ok()?.path();
+
+            if path.is_file() && path.extension().is_some_and(|s| s == "css") {
+                return Some(
+                    PathBuf::from("/css").join(
+                        path.strip_prefix(css_dir)
+                            .expect("We read the files from the css_dir."),
+                    ),
+                );
+            }
+
+            None
+        })
+        .sorted_by_key(|p| {
+            PathBuf::from(
+                p.file_name()
+                    .expect("We checked that all entries are files."),
+            )
+        })
+        .collect())
 }
 
 /// Creates the css files on disk
