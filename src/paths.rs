@@ -8,7 +8,7 @@ pub fn default_config_path() -> &'static PathBuf {
     CONFIG_PATH.get_or_init(|| {
         home_dir()
             .expect("Couldn't find the home dir!")
-            .join("{}/.config/igneous-md/")
+            .join(".config/igneous-md/")
     })
 }
 
