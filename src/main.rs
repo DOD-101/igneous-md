@@ -12,9 +12,9 @@
 extern crate rocket;
 
 use clap::{Parser, Subcommand};
-use rocket::{fs::FileServer, Build, Rocket};
+use rocket::{config::LogLevel as RocketLogLevel, fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
-use std::{fs, path::PathBuf, process::exit, thread};
+use std::{fs, path::PathBuf, process::exit, str::FromStr, thread};
 
 mod bidirectional_cycle;
 mod client;
@@ -32,7 +32,7 @@ fn rocket() -> Rocket<Build> {
     let args = Args::parse();
 
     SimpleLogger::new()
-        .with_level(args.log_level)
+        .with_level(args.log_level.into())
         .init()
         .unwrap();
 
@@ -86,6 +86,7 @@ fn rocket() -> Rocket<Build> {
     rocket::build()
         .configure(rocket::Config {
             port: args.port,
+            log_level: args.log_level.into(),
             ..rocket::Config::default()
         })
         .manage(paths)
@@ -121,9 +122,8 @@ struct Args {
     #[arg(long, default_value = "false")]
     no_viewer: bool,
     /// Will only print when starting server and on serious errors
-    // TODO: Setup rocket to use this
     #[arg(short, long, default_value = "Info")]
-    log_level: log::LevelFilter,
+    log_level: UnifiedLevel,
     /// Port to run the server on
     #[arg(short, long, default_value = "2323")]
     port: u16,
@@ -140,4 +140,46 @@ enum Action {
         #[arg(short, long, value_name = "PATH")]
         export_path: Option<PathBuf>,
     },
+}
+
+#[derive(Clone, Debug, Copy)]
+struct UnifiedLevel(log::LevelFilter);
+
+impl From<RocketLogLevel> for UnifiedLevel {
+    fn from(value: RocketLogLevel) -> Self {
+        match value {
+            RocketLogLevel::Off => Self(log::LevelFilter::Off),
+            RocketLogLevel::Critical => Self(log::LevelFilter::Error),
+            RocketLogLevel::Normal => Self(log::LevelFilter::Info),
+            RocketLogLevel::Debug => Self(log::LevelFilter::Debug),
+        }
+    }
+}
+
+impl From<UnifiedLevel> for RocketLogLevel {
+    fn from(value: UnifiedLevel) -> Self {
+        match value {
+            UnifiedLevel(log::LevelFilter::Off) => Self::Off,
+            UnifiedLevel(log::LevelFilter::Error) => Self::Critical,
+            UnifiedLevel(log::LevelFilter::Warn) | UnifiedLevel(log::LevelFilter::Info) => {
+                Self::Normal
+            }
+            UnifiedLevel(log::LevelFilter::Debug) | UnifiedLevel(log::LevelFilter::Trace) => {
+                Self::Debug
+            }
+        }
+    }
+}
+
+impl From<UnifiedLevel> for log::LevelFilter {
+    fn from(value: UnifiedLevel) -> Self {
+        value.0
+    }
+}
+
+impl FromStr for UnifiedLevel {
+    type Err = log::ParseLevelError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(UnifiedLevel(log::LevelFilter::from_str(s)?))
+    }
 }
