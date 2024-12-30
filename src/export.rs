@@ -1,3 +1,4 @@
+//! Just contains [export()].
 use std::{io, path::PathBuf};
 
 use crate::paths::default_config_path;

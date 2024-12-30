@@ -77,7 +77,7 @@ fn rocket() -> Rocket<Build> {
     };
 
     // The url of the md file, in the format:
-    // localhost:port/path/to/file
+    // localhost:port/?path=path/to/file
     let md_url = format!(
         "localhost:{}/?path={}",
         args.port,
@@ -161,8 +161,8 @@ enum Action {
     },
 }
 
-#[derive(Clone, Debug, Copy)]
 /// Wrapper around [log::LevelFilter] to allow conversion to [RocketLogLevel]
+#[derive(Clone, Debug, Copy)]
 struct UnifiedLevel(log::LevelFilter);
 
 impl From<RocketLogLevel> for UnifiedLevel {

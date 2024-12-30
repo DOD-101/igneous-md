@@ -1,3 +1,10 @@
+//! Module containing [upgrade_connection()] and all communication between client and server.
+//!
+//! Since we communicate everything via [Websockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+//! this is also where we handle that communication.
+//!
+//! Communication is done via json, which we [Serialize] using [serde_json]. See [ServerMsg] and
+//! [ClientMsg].
 use rocket::{
     futures::{SinkExt, StreamExt},
     serde::{Deserialize, Serialize},
@@ -12,25 +19,35 @@ use std::{io, path::PathBuf};
 
 use crate::{client::Client, export::export, paths::Paths};
 
+/// Struct representing a message from the client
 #[derive(Deserialize, Debug)]
 struct ClientMsg {
+    /// The type of message
     r#type: ClientMsgType,
 }
 
+/// Different types of messages the client can send
 #[derive(Deserialize, Debug)]
 enum ClientMsgType {
+    /// Request the next css file. See [Client::config]
     ChangeCssNext,
+    /// Request the previous css file. See [Client::config]
     ChangeCssPrev,
+    /// Request for the server to export the html (save it to disk)
     ExportHtml,
 }
 
+/// Struct representing a message from the server back to the client
 #[derive(Serialize, Debug)]
 struct ServerMsg {
+    /// The type of message
     r#type: ServerMsgType,
+    /// The content of the message
     body: String,
 }
 
 impl ServerMsg {
+    /// A convenience function to create a [ServerMsg] with type [ServerMsgType::Success]
     fn success() -> Self {
         Self {
             r#type: ServerMsgType::Success,
@@ -38,6 +55,7 @@ impl ServerMsg {
         }
     }
 
+    /// A convenience function to create a [ServerMsg] with type [ServerMsgType::Success]
     fn error(msg: String) -> Self {
         Self {
             r#type: ServerMsgType::Error,
@@ -46,18 +64,24 @@ impl ServerMsg {
     }
 }
 
+/// Different types of messages the server can send
 #[derive(Serialize, Debug)]
 enum ServerMsgType {
+    /// A message telling the client to treat the body as a new css file path
     CssUpdate,
+    /// A message telling the client to treat the body as the new content of the `<body>` element
     HtmlUpdate,
+    /// An arbitrary success message
     Success,
+    /// An arbitrary error message
     Error,
 }
 
-/// Handles clients upgrading to websocket to receive file updates
+/// Handles clients upgrading to Websocket
 ///
-/// This function will upgrade the connection to websocket and spawn a new thread for the
-/// connection.
+/// Once this succeeds the client is properly connected and will receive live-updates for the
+/// `path` (the md file). It will also now be able to request things from / communicate with
+/// the server via the Websocket.
 #[get("/ws?<path>")]
 pub async fn upgrade_connection(
     ws: WebSocket,
@@ -74,9 +98,11 @@ pub async fn upgrade_connection(
 
     Ok(ws.channel(move |mut stream| {
         Box::pin(async move {
+            // How often the`.md` file should be check for updates
             let mut interval = time::interval(Duration::from_secs(1));
             loop {
                 select! {
+                    // Check for updates in the`.md` file, sending any new HTML to the client
                     _ = interval.tick()=> {
                         if let Ok(Some(html)) = client.get_latest_html_if_changed() {
                             log::info!("Sending new html");
@@ -135,6 +161,7 @@ pub async fn upgrade_connection(
     }))
 }
 
+/// [upgrade_connection()] uses this to handle the incoming messages from the client
 fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
     match msg.r#type {
         ClientMsgType::ChangeCssNext => {

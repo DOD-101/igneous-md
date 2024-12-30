@@ -1,6 +1,10 @@
+//! The conversion logic from md to HTML. See: [md_to_html]
 use kuchikiki::traits::*;
 use markdown::{to_html_with_options, Options};
 
+/// The actual conversion from md to HTML
+///
+/// Uses  [post_process_html] to adjust the HTML before returning it
 pub fn md_to_html(md: &str) -> String {
     let markdown_options = Options {
         parse: markdown::ParseOptions {
@@ -23,6 +27,11 @@ pub fn md_to_html(md: &str) -> String {
     )
 }
 
+/// Post process the given html, doing the following:
+///
+/// 1. Adding the missing classes for taks-lists
+///
+/// 2. Adjusts internal`.md` links to conform to the API format.
 fn post_process_html(html: String) -> String {
     // Parse the HTML string into a DOM tree
     let document = kuchikiki::parse_html().one(html);
@@ -63,7 +72,7 @@ fn post_process_html(html: String) -> String {
         }
     }
 
-    // Adjust markdown links to to api format
+    // Adjust markdown links to API format
     let links = document
         .select(r#"a[href$=".md"]:not([href*="https:"])"#)
         .expect("Selector is hard-coded.");
@@ -88,6 +97,8 @@ fn post_process_html(html: String) -> String {
 }
 
 /// Returns the initial html, for when a client connects for the first time
+///
+/// This is mainly used to return a valid HTML document and load the required JS files.
 pub fn initial_html(css: &str, body: &str) -> String {
     format!(
         r#"
