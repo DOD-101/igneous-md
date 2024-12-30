@@ -1,4 +1,4 @@
-name: Linux Build
+name: Rust checks
 
 on:
   push:
@@ -46,5 +46,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev
 
-      - name: Build
-        run: cargo build --verbose
+      - name: Checks
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy -- --no-deps
