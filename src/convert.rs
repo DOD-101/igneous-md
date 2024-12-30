@@ -18,7 +18,9 @@ pub fn md_to_html(md: &str) -> String {
         },
     };
 
-    post_process_html(to_html_with_options(md, &markdown_options).unwrap())
+    post_process_html(
+        to_html_with_options(md, &markdown_options).expect("See docs of to_html_with_options."),
+    )
 }
 
 fn post_process_html(html: String) -> String {

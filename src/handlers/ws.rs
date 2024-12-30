@@ -102,7 +102,7 @@ pub async fn upgrade_connection(
                                         if let Ok(client_msg) = serde_json::from_str::<ClientMsg>(&msg_string) {
 
                                             let return_msg = handle_client_msg(client_msg, &mut client);
-                                            
+
                                             log::info!("Sending ws message: {:?}", return_msg);
 
                                             let _ = stream.send(
@@ -138,22 +138,27 @@ pub async fn upgrade_connection(
 fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
     match msg.r#type {
         ClientMsgType::ChangeCssNext => {
-            let path = client.config.next_css().expect("Failed to get next css");
+            let path = client.config.next_css();
 
-            ServerMsg {
-                r#type: ServerMsgType::CssUpdate,
-                body: path.to_string_lossy().to_string(),
+            if let Some(path) = path {
+                ServerMsg {
+                    r#type: ServerMsgType::CssUpdate,
+                    body: path.to_string_lossy().to_string(),
+                }
+            } else {
+                ServerMsg::error("No css files provided".to_string())
             }
         }
         ClientMsgType::ChangeCssPrev => {
-            let path = client
-                .config
-                .previous_css()
-                .expect("Failed to get previous css");
+            let path = client.config.previous_css();
 
-            ServerMsg {
-                r#type: ServerMsgType::CssUpdate,
-                body: path.to_string_lossy().to_string(),
+            if let Some(path) = path {
+                ServerMsg {
+                    r#type: ServerMsgType::CssUpdate,
+                    body: path.to_string_lossy().to_string(),
+                }
+            } else {
+                ServerMsg::error("No css files provided".to_string())
             }
         }
         ClientMsgType::ExportHtml => {

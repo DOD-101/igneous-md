@@ -33,12 +33,15 @@ fn rocket() -> Rocket<Build> {
     SimpleLogger::new()
         .with_level(args.log_level.into())
         .init()
-        .unwrap();
+        .expect("Failed to init Logger.");
 
+    // Convert the md file rather than launching the server, if the user passed the subcommand
     if let Some(Action::Convert { export_path }) = args.command {
-        let html = convert::md_to_html(&fs::read_to_string(args.path.clone()).unwrap());
+        let html = convert::md_to_html(
+            &fs::read_to_string(args.path.clone()).expect("Failed to read md file to string."),
+        );
         if export::export(
-            convert::initial_html(args.css.unwrap_or(PathBuf::new()).to_str().unwrap(), &html),
+            convert::initial_html(&args.css.unwrap_or(PathBuf::new()).to_string_lossy(), &html),
             export_path.map(PathBuf::from),
         )
         .is_err()
@@ -50,6 +53,13 @@ fn rocket() -> Rocket<Build> {
         exit(0);
     }
 
+    #[cfg(feature = "generate_config")]
+    if !default_config_path().exists()
+        && config::generate_config(&default_config_path().join("css")).is_err()
+    {
+        log::error!("Failed to create default config.");
+    }
+
     let paths = match Paths::new(
         args.css_dir.unwrap_or(default_config_path().join("css")),
         args.css.map(|p| PathBuf::from("/css").join(p)),
@@ -57,18 +67,14 @@ fn rocket() -> Rocket<Build> {
         Ok(p) => p,
         Err(e) => {
             log::error!("Failed to create Paths: {}", e);
+
+            #[cfg(not(feature = "generate_config"))]
+            log::info!("Check that the config dir exists and contains css files.");
+            log::info!("igneous-md has been compiled without the generate_config feature.");
+
             exit(1)
         }
     };
-
-    #[cfg(feature = "generate_config")]
-    {
-        if !default_config_path().exists()
-            && config::generate_config(&default_config_path().join("css")).is_err()
-        {
-            log::error!("Failed to create default config.");
-        }
-    }
 
     // The url of the md file, in the format:
     // localhost:port/path/to/file
@@ -121,6 +127,7 @@ fn rocket() -> Rocket<Build> {
 #[command(version, about= "igneous-md | the simple and lightweight markdown viewer", long_about = None)]
 struct Args {
     #[command(subcommand)]
+    /// Actions other than launching the server and viewer
     command: Option<Action>,
     /// Path to markdown file
     path: PathBuf,
@@ -155,6 +162,7 @@ enum Action {
 }
 
 #[derive(Clone, Debug, Copy)]
+/// Wrapper around [log::LevelFilter] to allow conversion to [RocketLogLevel]
 struct UnifiedLevel(log::LevelFilter);
 
 impl From<RocketLogLevel> for UnifiedLevel {

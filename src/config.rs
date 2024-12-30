@@ -32,12 +32,20 @@ impl Config {
     }
 
     pub fn next_css(&mut self) -> Option<PathBuf> {
+        if self.css_paths.is_empty() {
+            return None;
+        }
+
         self.current_css_index = (self.current_css_index + 1) % self.css_paths.len();
 
         self.css_paths.get(self.current_css_index).cloned()
     }
 
     pub fn previous_css(&mut self) -> Option<PathBuf> {
+        if self.css_paths.is_empty() {
+            return None;
+        }
+
         self.current_css_index = (self.current_css_index - 1) % self.css_paths.len();
 
         self.css_paths.get(self.current_css_index).cloned()
