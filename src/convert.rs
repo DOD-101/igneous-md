@@ -74,7 +74,7 @@ fn post_process_html(html: String) -> String {
 
     // Adjust markdown links to API format
     let links = document
-        .select(r#"a[href$=".md"]:not([href*="https:"])"#)
+        .select(r#"a[href$=".md"]:not([href^="http"])"#)
         .expect("Selector is hard-coded.");
 
     for link in links {
@@ -118,4 +118,43 @@ pub fn initial_html(css: &str, body: &str) -> String {
     "#,
         css, body
     )
+}
+
+#[cfg(test)]
+mod test {
+    use super::md_to_html;
+    use kuchikiki::traits::*;
+
+    #[test]
+    fn links() {
+        let md_input = [
+            "[](https://test.md)",
+            "[](http://test.md)",
+            "[](/test.md)",
+            "[](./test.md)",
+            "[](../test.md)",
+        ];
+
+        let html_ouput = md_input.map(md_to_html);
+
+        let mut hrefs = html_ouput.into_iter().map(|h| {
+            let document = kuchikiki::parse_html().one(h);
+
+            // Adjust markdown links to API format
+            let link = document
+                .select_first(r#"a"#)
+                .expect("Selector is hard-coded.");
+
+            let attributes = link.attributes.borrow_mut();
+
+            attributes.get("href").unwrap().to_string()
+        });
+
+        assert_eq!(hrefs.next(), Some("https://test.md".to_string()));
+        assert_eq!(hrefs.next(), Some("http://test.md".to_string()));
+        assert_eq!(hrefs.next(), Some("/?path=/test.md".to_string()));
+        assert_eq!(hrefs.next(), Some("/?path=./test.md".to_string()));
+        assert_eq!(hrefs.next(), Some("/?path=../test.md".to_string()));
+        assert_eq!(hrefs.next(), None);
+    }
 }
