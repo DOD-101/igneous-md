@@ -84,7 +84,10 @@ impl Config {
             return None;
         }
 
-        self.current_css_index = (self.current_css_index - 1) % self.css_paths.len();
+        self.current_css_index = self
+            .current_css_index
+            .checked_sub(1)
+            .unwrap_or(self.css_paths.len() - 1);
 
         self.css_paths.get(self.current_css_index).cloned()
     }
