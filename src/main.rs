@@ -24,7 +24,7 @@ mod handlers;
 mod paths;
 
 use handlers::*;
-use paths::{default_config_path, Paths};
+use paths::{default_css_dir, Paths};
 
 #[launch]
 fn rocket() -> Rocket<Build> {
@@ -53,24 +53,35 @@ fn rocket() -> Rocket<Build> {
         exit(0);
     }
 
-    #[cfg(feature = "generate_config")]
-    if !default_config_path().exists()
-        && config::generate_config(&default_config_path().join("css")).is_err()
-    {
-        log::error!("Failed to create default config.");
+    if !default_css_dir().exists() {
+        // If compiled with generate_config generate the config
+        #[cfg(feature = "generate_config")]
+        if let Err(e) = config::generate_config(default_css_dir()) {
+            log::error!("Failed to create default config: {}", e);
+
+            exit(1)
+        }
+
+        // If compiled without generate_config just create the empty dir
+        #[cfg(not(feature = "generate_config"))]
+        if let Err(e) = fs::create_dir_all(default_css_dir()) {
+            log::error!(
+                "Failed to create css_dir: {} With error: {}",
+                default_css_dir().to_string_lossy(),
+                e
+            );
+
+            exit(1)
+        }
     }
 
     let paths = match Paths::new(
-        args.css_dir.unwrap_or(default_config_path().join("css")),
+        args.css_dir.unwrap_or(default_css_dir().to_path_buf()),
         args.css.map(|p| PathBuf::from("/css").join(p)),
     ) {
         Ok(p) => p,
         Err(e) => {
             log::error!("Failed to create Paths: {}", e);
-
-            #[cfg(not(feature = "generate_config"))]
-            log::info!("Check that the config dir exists and contains css files.");
-            log::info!("igneous-md has been compiled without the generate_config feature.");
 
             exit(1)
         }
@@ -95,11 +106,6 @@ fn rocket() -> Rocket<Build> {
     }
 
     let css_dir = paths.get_css_dir();
-
-    if !css_dir.exists() {
-        log::error!("Css dir: {} doesn't exist. Exiting.", css_dir.display());
-        exit(1);
-    }
 
     rocket::build()
         .configure(rocket::Config {

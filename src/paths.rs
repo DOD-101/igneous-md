@@ -11,14 +11,20 @@ use std::{
 
 use crate::config::read_css_dir;
 
-/// Returns the config path for the application
-pub fn default_config_path() -> &'static PathBuf {
+/// Returns the default config dir for the application
+pub fn default_config_dir() -> &'static PathBuf {
     static CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
     CONFIG_PATH.get_or_init(|| {
         home_dir()
             .expect("Couldn't find the home dir!")
             .join(".config/igneous-md/")
     })
+}
+
+/// Returns the default css dir for the application
+pub fn default_css_dir() -> &'static PathBuf {
+    static CSS_PATH: OnceLock<PathBuf> = OnceLock::new();
+    CSS_PATH.get_or_init(|| default_config_dir().join("css"))
 }
 
 /// Paths used by the application
@@ -43,7 +49,7 @@ impl Paths {
     /// disk.
     pub fn new(css_dir: PathBuf, default_css: Option<PathBuf>) -> io::Result<Self> {
         Ok(Self {
-            config_dir: default_config_path().into(),
+            config_dir: default_config_dir().into(),
             default_css: default_css.unwrap_or(Self::determine_default_css(&css_dir)?),
             css_dir,
         })

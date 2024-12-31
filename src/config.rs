@@ -123,6 +123,8 @@ impl Config {
     }
 }
 
+// NOTE: Perhaps this should be under paths
+
 /// Will attempt to read the given `css_dir` and organize the output
 ///
 /// This function will:

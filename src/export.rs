@@ -1,7 +1,7 @@
 //! Just contains [export()].
 use std::{io, path::PathBuf};
 
-use crate::paths::default_config_path;
+use crate::paths::default_config_dir;
 /// Saves the given html string to disk
 ///
 /// The file is stored in the users config dir, with the name:
@@ -17,7 +17,7 @@ pub fn export(html: String, other_path: Option<PathBuf>) -> io::Result<()> {
     );
 
     let file_path = other_path
-        .unwrap_or(PathBuf::from(default_config_path()))
+        .unwrap_or(PathBuf::from(default_config_dir()))
         .join(file_name);
 
     std::fs::write(&file_path, html)?;
