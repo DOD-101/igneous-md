@@ -8,10 +8,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[cfg(feature = "generate_config")]
-use std::io::Write;
-
 use crate::paths::Paths;
+
+#[cfg(feature = "generate_config")]
+pub mod generate;
 
 /// Struct containing all information relating to the config, including the css files.
 #[derive(Debug, Clone)]
@@ -160,25 +160,4 @@ pub fn read_css_dir(css_dir: &Path) -> io::Result<Vec<PathBuf>> {
             )
         })
         .collect())
-}
-
-/// Attempts to create the default css files on disk
-#[cfg(feature = "generate_config")]
-pub fn generate_config(css_dir: &Path) -> io::Result<()> {
-    fs::create_dir_all(css_dir.join(Path::new("hljs")))?;
-
-    let css_dark = include_bytes!("../example/css/github-markdown-dark.css");
-    fs::File::create(css_dir.join(Path::new("github-markdown-dark.css")))?.write_all(css_dark)?;
-
-    let css_light = include_bytes!("../example/css/github-markdown-light.css");
-    fs::File::create(css_dir.join(Path::new("github-markdown-light.css")))?.write_all(css_light)?;
-
-    let css_dark_hljs = include_bytes!("../example/css/hljs/github-dark.css");
-    fs::File::create(css_dir.join(Path::new("hljs/github-dark.css")))?.write_all(css_dark_hljs)?;
-
-    let css_light_hljs = include_bytes!("../example/css/hljs/github-light.css");
-    fs::File::create(css_dir.join(Path::new("hljs/github-light.css")))?
-        .write_all(css_light_hljs)?;
-
-    Ok(())
 }

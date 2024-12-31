@@ -11,11 +11,12 @@
 #[macro_use]
 extern crate rocket;
 
-use clap::{Parser, Subcommand};
-use rocket::{config::LogLevel as RocketLogLevel, fs::FileServer, Build, Rocket};
+use clap::Parser;
+use rocket::{fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
-use std::{fs, path::PathBuf, process::exit, str::FromStr, thread};
+use std::{fs, io, io::Write, path::PathBuf, process::exit, thread};
 
+mod cli;
 mod client;
 mod config;
 mod convert;
@@ -23,6 +24,7 @@ mod export;
 mod handlers;
 mod paths;
 
+use cli::{ActionResult, Args};
 use handlers::*;
 use paths::{default_css_dir, Paths};
 
@@ -35,36 +37,24 @@ fn rocket() -> Rocket<Build> {
         .init()
         .expect("Failed to init Logger.");
 
-    // Convert the md file rather than launching the server, if the user passed the subcommand
-    if let Some(Action::Convert { export_path }) = args.command {
-        let html = convert::md_to_html(
-            &fs::read_to_string(args.path.clone()).expect("Failed to read md file to string."),
-        );
-        if export::export(
-            convert::initial_html(&args.css.unwrap_or(PathBuf::new()).to_string_lossy(), &html),
-            export_path.map(PathBuf::from),
-        )
-        .is_err()
-        {
-            log::error!("Failed to export md.");
-            exit(1);
-        }
-
-        exit(0);
-    }
-
-    if !default_css_dir().exists() {
-        // If compiled with generate_config generate the config
-        #[cfg(feature = "generate_config")]
-        if let Err(e) = config::generate_config(default_css_dir()) {
-            log::error!("Failed to create default config: {}", e);
+    match args.handle_actions() {
+        Ok(ActionResult::Continue) => (),
+        Ok(ActionResult::Exit) => exit(0),
+        Err(e) => {
+            log::error!("{}", e);
 
             exit(1)
         }
+    }
 
-        // If compiled without generate_config just create the empty dir
-        #[cfg(not(feature = "generate_config"))]
-        if let Err(e) = fs::create_dir_all(default_css_dir()) {
+    // TODO: In the future it might be nice to check if the dir contains no css, rather than just
+    // checking if it exists. However as it stands currently users can avoid the prompt, by
+    // creating the dirs.
+
+    // Check if the config exists
+    if !default_css_dir().exists() {
+        // Always at least create the dir
+        if let Err(e) = fs::create_dir_all(default_css_dir().join("hljs")) {
             log::error!(
                 "Failed to create css_dir: {} With error: {}",
                 default_css_dir().to_string_lossy(),
@@ -72,6 +62,39 @@ fn rocket() -> Rocket<Build> {
             );
 
             exit(1)
+        }
+
+        // If compiled with generate_config generate the config
+        #[cfg(feature = "generate_config")]
+        {
+            print!(
+                "No config found. Would you like to generate the default config? [(y)es/(N)o]: "
+            );
+
+            io::stdout().flush().expect("Failed to flush stdout.");
+
+            let mut user_input = String::new();
+
+            io::stdin()
+                .read_line(&mut user_input)
+                .expect("Failed to read input.");
+
+            if user_input
+                .to_lowercase()
+                .chars()
+                .next()
+                .is_some_and(|c| c == 'y')
+            {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+
+                if let Err(e) =
+                    rt.block_on(config::generate::generate_config_files(default_css_dir()))
+                {
+                    log::error!("Failed to create default config: {}", e);
+
+                    exit(1)
+                }
+            }
         }
     }
 
@@ -125,87 +148,4 @@ fn rocket() -> Rocket<Build> {
                 upgrade_connection,
             ],
         )
-}
-
-/// Struct containing all command line options
-/// For more information see [clap documentation](https://docs.rs/clap/latest/clap/index.html)
-#[derive(Parser, Debug)]
-#[command(version, about= "igneous-md | the simple and lightweight markdown viewer", long_about = None)]
-struct Args {
-    #[command(subcommand)]
-    /// Actions other than launching the server and viewer
-    command: Option<Action>,
-    /// Path to markdown file
-    path: PathBuf,
-    /// Path to stylesheet within css dir
-    #[arg(short, long, value_name = "PATH")]
-    css: Option<PathBuf>,
-    /// Path to alternate css dir
-    #[arg(long, value_name = "PATH")]
-    css_dir: Option<PathBuf>,
-    /// Start server without viewer
-    #[arg(long, default_value = "false")]
-    no_viewer: bool,
-    /// Will only print when starting server and on serious errors
-    #[arg(short, long, default_value = "Info")]
-    log_level: UnifiedLevel,
-    /// Port to run the server on
-    #[arg(short, long, default_value = "2323")]
-    port: u16,
-    /// Open browser tab
-    #[arg(short, long, default_value = "false")]
-    browser: bool,
-}
-
-/// Actions other than launching the server to view markdown
-#[derive(Debug, Subcommand)]
-enum Action {
-    /// Convert a md file to html and save it to disk
-    Convert {
-        #[arg(short, long, value_name = "PATH")]
-        export_path: Option<PathBuf>,
-    },
-}
-
-/// Wrapper around [log::LevelFilter] to allow conversion to [RocketLogLevel]
-#[derive(Clone, Debug, Copy)]
-struct UnifiedLevel(log::LevelFilter);
-
-impl From<RocketLogLevel> for UnifiedLevel {
-    fn from(value: RocketLogLevel) -> Self {
-        match value {
-            RocketLogLevel::Off => Self(log::LevelFilter::Off),
-            RocketLogLevel::Critical => Self(log::LevelFilter::Error),
-            RocketLogLevel::Normal => Self(log::LevelFilter::Info),
-            RocketLogLevel::Debug => Self(log::LevelFilter::Debug),
-        }
-    }
-}
-
-impl From<UnifiedLevel> for RocketLogLevel {
-    fn from(value: UnifiedLevel) -> Self {
-        match value {
-            UnifiedLevel(log::LevelFilter::Off) => Self::Off,
-            UnifiedLevel(log::LevelFilter::Error) => Self::Critical,
-            UnifiedLevel(log::LevelFilter::Warn) | UnifiedLevel(log::LevelFilter::Info) => {
-                Self::Normal
-            }
-            UnifiedLevel(log::LevelFilter::Debug) | UnifiedLevel(log::LevelFilter::Trace) => {
-                Self::Debug
-            }
-        }
-    }
-}
-
-impl From<UnifiedLevel> for log::LevelFilter {
-    fn from(value: UnifiedLevel) -> Self {
-        value.0
-    }
-}
-
-impl FromStr for UnifiedLevel {
-    type Err = log::ParseLevelError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(UnifiedLevel(log::LevelFilter::from_str(s)?))
-    }
 }
