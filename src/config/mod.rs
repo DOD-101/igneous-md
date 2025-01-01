@@ -1,6 +1,6 @@
 //! Module containing [Config] and other config-related items
 //!
-//! The main item of this config is the [Config] struct, but it also contains [generate_config] to
+//! The main item of this config is the [Config] struct, but it also contains [generate] to
 //! generate the default config on disk.
 use itertools::Itertools;
 use std::{
