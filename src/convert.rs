@@ -1,4 +1,7 @@
 //! The conversion logic from md to HTML. See: [md_to_html]
+//!
+//! We also need to do some post processing [post_process_html] to make the resulting markdown work
+//! for our application.
 use kuchikiki::traits::*;
 use markdown::{to_html_with_options, Options};
 

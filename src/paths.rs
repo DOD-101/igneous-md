@@ -30,7 +30,7 @@ pub fn default_css_dir() -> &'static PathBuf {
 /// Paths used by the application
 #[derive(Clone, Debug)]
 pub struct Paths {
-    /// The dir containing the config for the application. See [default_config_path()]
+    /// The dir containing the config for the application. See [default_config_dir()]
     ///
     /// Currently this isn't very important, since we primarily care about the [Self::css_dir]
     config_dir: PathBuf,

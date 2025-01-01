@@ -1,13 +1,17 @@
-//! Generation of config
+//! Generation of the config. Disabled when compiled without the `generate_config` feature.
+//!
+//! This is the only part of the application that requires an internet connection.
 use regex::Regex;
 use std::{collections::HashSet, path::Path};
 
+/// Copyright notice for highlight.js files
 const NOTICE_HLJS: &str = r#"
 Theme taken from: https://github.com/highlightjs/highlight.js
 
 For License details see upstream.
 "#;
 
+/// Copyright notice for github-markdown-css files
 const NOTICE: &str = r#"
 Theme taken from: https://github.com/sindresorhus/github-markdown-css/
 
@@ -18,6 +22,21 @@ Changes:
 - Add 32px margin to body
 "#;
 
+/// Responsible for generating the config files and writing them to disk.
+///
+/// The steps are as follows (not necessarily in order):
+///
+/// 1. Get the files from GitHub
+///
+/// 2. Adjust the css. See [adjust_css].
+///
+/// 3. Save to disk
+///
+/// For more information on different steps see the individual functions.
+///
+///
+/// The function is async to speed up the fetching of the remote files and to allow concurrently writing
+/// to disk.
 pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     const HLJS_CSS_VERSION: &str = "11.11.1";
 
@@ -79,6 +98,17 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
+/// Adjust the given css String
+///
+/// Steps:
+///
+/// 1. Add Copyright notice
+///
+/// 2. Replace the hex color codes with css variables
+///
+/// 3. Add some custom additional styling
+///
+/// For more information see the individual functions.
 fn adjust_css(css: String) -> String {
     let hexes = find_hexes(&css);
 
@@ -93,12 +123,19 @@ fn adjust_css(css: String) -> String {
     )
 }
 
+/// Replace all hex color codes with the corresponding variable.
+///
+/// In the [Vec<(String, String)>], the first value is the hex color value to replace and the second is the
+/// variable name to replace it with.
 fn replace_hexes(css: String, pairs: Vec<(String, String)>) -> String {
     pairs.iter().fold(css, |css, (hex, var)| {
         css.replace(hex, &format!("var({})", var))
     })
 }
 
+/// Create the css for the variables
+///
+/// The [Vec<(String, String)>] format is the same as for [replace_hexes].
 fn create_css_vars(pairs: Vec<(String, String)>) -> String {
     let mut result = ":root {\n".to_owned();
 
@@ -111,6 +148,21 @@ fn create_css_vars(pairs: Vec<(String, String)>) -> String {
     result
 }
 
+/// Function used to find hex color values in css
+///
+/// It will find all valid hex color values so:
+///
+/// ```css
+/// element {
+///     color: #fff;
+///     color: #ffffff;
+///     color: #ffffffff; /* With alpha channel */
+/// }
+/// ```
+///
+/// Would all be detected.
+///
+/// The returned [Vec<(String, String)>] format is the same as for [replace_hexes].
 fn find_hexes(text: &str) -> Vec<(String, String)> {
     let re = Regex::new(r"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b").unwrap();
 
