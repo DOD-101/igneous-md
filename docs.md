@@ -22,6 +22,16 @@ Configuring igneous-md is super simple (assuming you know some basic CSS).
 
 Simply copy one of the given CSS files and change whatever you want. If you want to change the highlighting of the code blocks, have a look in `hljs/`.
 
+## Default Config 
+
+The default config contains the css files for the github theme. (light & dark)
+
+You can generate the default config by either running `igneous-md generate-config` or launching igneous-md without having `.config/igneous-md/css`.
+
+The default css files also provide a great starting point for creating your own themes.
+
+Note: Config generation is only available if compiled with `--features generate_config` (it is a default feature).
+
 ## Keybindings
 
 | Key | Description                  |
