@@ -57,7 +57,7 @@ end, {})
 
 Igneous-md allows you to quickly convert your `.md` files to html: 
 
-`igneous-md <PATH> [options] convert`
+`igneous-md convert <PATH>`
 
 ## FAQ
 
