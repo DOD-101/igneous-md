@@ -3,7 +3,9 @@
 //! # Usage
 //!
 //! ```
-//! igneous-md --path path/to/file.md
+//! igneous-md path/to/file.md
+//!
+//! igneous-md convert path/to/file.md
 //! ```
 //! For more information see the usage docs.
 //!
@@ -24,20 +26,20 @@ mod export;
 mod handlers;
 mod paths;
 
-use cli::{ActionResult, Args};
+use cli::{ActionResult, Cli};
 use handlers::*;
 use paths::{default_css_dir, Paths};
 
 #[launch]
 fn rocket() -> Rocket<Build> {
-    let args = Args::parse();
+    let cli = Cli::parse();
 
     SimpleLogger::new()
-        .with_level(args.log_level.into())
+        .with_level(cli.args.log_level.into())
         .init()
         .expect("Failed to init Logger.");
 
-    match args.handle_actions() {
+    match cli.handle_actions() {
         Ok(ActionResult::Continue) => (),
         Ok(ActionResult::Exit) => exit(0),
         Err(e) => {
@@ -99,8 +101,8 @@ fn rocket() -> Rocket<Build> {
     }
 
     let paths = match Paths::new(
-        args.css_dir.unwrap_or(default_css_dir().to_path_buf()),
-        args.css.map(|p| PathBuf::from("/css").join(p)),
+        cli.args.css_dir.unwrap_or(default_css_dir().to_path_buf()),
+        cli.args.css.map(|p| PathBuf::from("/css").join(p)),
     ) {
         Ok(p) => p,
         Err(e) => {
@@ -114,15 +116,15 @@ fn rocket() -> Rocket<Build> {
     // localhost:port/?path=path/to/file
     let md_url = format!(
         "localhost:{}/?path={}",
-        args.port,
-        args.path.to_string_lossy()
+        cli.args.port,
+        cli.args.path.unwrap_or_default().to_string_lossy()
     );
 
-    if args.browser && open::that_detached(&md_url).is_err() {
+    if cli.args.browser && open::that_detached(&md_url).is_err() {
         log::warn!("Failed to open browser");
     }
 
-    if !args.no_viewer {
+    if !cli.args.no_viewer {
         let client = client::Viewer::new(md_url);
 
         thread::spawn(move || client.start());
@@ -132,8 +134,8 @@ fn rocket() -> Rocket<Build> {
 
     rocket::build()
         .configure(rocket::Config {
-            port: args.port,
-            log_level: args.log_level.into(),
+            port: cli.args.port,
+            log_level: cli.args.log_level.into(),
             ..rocket::Config::default()
         })
         .manage(paths)
