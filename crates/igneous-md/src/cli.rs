@@ -43,6 +43,7 @@ pub struct NormalArgs {
     pub css_dir: Option<PathBuf>,
     /// Start server without viewer
     #[arg(long, default_value = "false")]
+    #[cfg(feature = "viewer")]
     pub no_viewer: bool,
     /// Log Level, aka. how verbose the application will be.
     #[arg(short, long, default_value = if cfg!(debug_assertions) {"INFO"} else {"WARN"})]

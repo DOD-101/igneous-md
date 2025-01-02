@@ -30,6 +30,9 @@ use cli::{ActionResult, Cli};
 use handlers::*;
 use paths::{default_css_dir, Paths};
 
+#[cfg(feature = "viewer")]
+use igneous_md_viewer::Viewer;
+
 #[launch]
 fn rocket() -> Rocket<Build> {
     let cli = Cli::parse();
@@ -124,8 +127,9 @@ fn rocket() -> Rocket<Build> {
         log::warn!("Failed to open browser");
     }
 
+    #[cfg(feature = "viewer")]
     if !cli.args.no_viewer {
-        let client = client::Viewer::new(md_url);
+        let client = Viewer::new(md_url);
 
         thread::spawn(move || client.start());
     }
