@@ -4,43 +4,58 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+    };
     crane.url = "github:ipetkov/crane";
-
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     {
-      self,
       nixpkgs,
       crane,
       flake-utils,
+      rust-overlay,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
 
         inherit (pkgs) lib;
 
-        craneLib = crane.mkLib pkgs;
+        craneLib = (crane.mkLib pkgs).overrideScope (
+          final: prev: {
+            # We override the behavior of `mkCargoDerivation` by adding a wrapper which
+            # will set a default value of `CARGO_PROFILE` when not set by the caller.
+            # This change will automatically be propagated to any other functions built
+            # on top of it (like `buildPackage`, `cargoBuild`, etc.)
+            mkCargoDerivation =
+              args:
+              prev.mkCargoDerivation (
+                {
+                  CARGO_PROFILE = "dev";
+                }
+                // args
+              );
+          }
+        );
+
         unfilteredRoot = ./.;
         src = lib.fileset.toSource {
           root = unfilteredRoot;
           fileset = lib.fileset.unions [
-            # Default files from crane (Rust and cargo files)
             (craneLib.fileset.commonCargoSources unfilteredRoot)
-            # Also keep any markdown files
             (lib.fileset.fileFilter (file: file.hasExt == "js") unfilteredRoot)
-            # Example of a folder for images, icons, etc
-            (lib.fileset.maybeMissing ./example)
             (lib.fileset.maybeMissing ./src)
           ];
         };
 
-        # Common arguments can be set here to avoid repeating them later
-        # Note: changes here will rebuild all dependency crates
         commonArgs = {
           inherit src;
           strictDeps = true;
@@ -66,21 +81,25 @@
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-        my-crate = craneLib.buildPackage (
+        igneous-md = craneLib.buildPackage (
           commonArgs
           // {
             cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+          }
+        );
 
-            # Additional environment variables or build phases/hooks can be set
-            # here *without* rebuilding all dependency crates
-            # MY_CUSTOM_VAR = "some value";
+        igneous-md-release = craneLib.buildPackage (
+          commonArgs
+          // {
+            cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+            CARGO_PROFILE = "release";
           }
         );
       in
       {
         checks = {
           # Build the crate as part of `nix flake check` for convenience
-          inherit my-crate;
+          inherit igneous-md;
 
           # Run clippy (and deny all warnings) on the crate source,
           # again, reusing the dependency artifacts from above.
@@ -88,7 +107,7 @@
           # Note that this is done as a separate derivation so that
           # we can block the CI if there are issues here, but not
           # prevent downstream consumers from building our crate by itself.
-          my-crate-clippy = craneLib.cargoClippy (
+          igneous-md-clippy = craneLib.cargoClippy (
             commonArgs
             // {
               inherit cargoArtifacts;
@@ -96,7 +115,14 @@
             }
           );
 
-          my-crate-doc = craneLib.cargoDoc (
+          igneous-md-test = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+            }
+          );
+
+          igneous-md-doc = craneLib.cargoDoc (
             commonArgs
             // {
               inherit cargoArtifacts;
@@ -104,30 +130,34 @@
           );
 
           # Check formatting
-          my-crate-fmt = craneLib.cargoFmt {
+          igneous-md-fmt = craneLib.cargoFmt {
             inherit src;
           };
 
         };
 
-        packages.default = my-crate;
+        packages = {
+          default = igneous-md;
+          release = igneous-md-release;
+        };
 
         apps.default = flake-utils.lib.mkApp {
-          drv = my-crate;
+          drv = igneous-md;
         };
 
-        devShells.default = craneLib.devShell {
-          # Inherit inputs from checks.
-          checks = self.checks.${system};
+        devShells.default = pkgs.mkShell {
+          nativeBuildInputs = commonArgs.nativeBuildInputs;
 
-          # Additional dev-shell environment variables can be set directly
-          # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
-
-          # Extra inputs can be added here; cargo and rustc are provided by default.
-          packages = [
-            # pkgs.ripgrep
-          ];
+          buildInputs =
+            with pkgs;
+            [
+              # Add rustup, so that cargo autocomplete works in zsh
+              rustup
+              rust-bin.stable.latest.default
+            ]
+            ++ commonArgs.buildInputs;
         };
+
       }
     );
 }
