@@ -1,0 +1,9 @@
+[package]
+name = "igneous-md-viewer"
+description = "The viewer component of igneous-md"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+webkit2gtk = "2.0.1"
+gtk = "0.18.1"

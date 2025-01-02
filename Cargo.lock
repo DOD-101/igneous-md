@@ -1425,8 +1425,8 @@ version = "0.2.0"
 dependencies = [
  "chrono",
  "clap",
- "gtk",
  "home",
+ "igneous-md-viewer",
  "itertools",
  "kuchikiki",
  "log",
@@ -1443,6 +1443,13 @@ dependencies = [
  "tokio",
  "toml",
  "uuid",
+]
+
+[[package]]
+name = "igneous-md-viewer"
+version = "0.1.0"
+dependencies = [
+ "gtk",
  "webkit2gtk",
 ]
 

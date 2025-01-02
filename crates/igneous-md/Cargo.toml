@@ -11,13 +11,14 @@ repository = "https://github.com/DOD-101/igneous-md"
 authors = ["David Thievon"]
 
 [features]
-default = ["generate_config"]
+default = ["generate_config", "viewer"]
 generate_config = ["dep:reqwest"]
+viewer = ["dep:igneous-md-viewer"]
 
 [dependencies]
+igneous-md-viewer = { workspace = true, optional = true }
 chrono = { version = "0.4.38", features = ["clock"] }
 clap = { version = "4.5.16", features = ["derive"] }
-gtk = "0.18.1"
 home = "0.5.9"
 itertools = "0.13.0"
 kuchikiki = "0.8.2"
@@ -35,4 +36,3 @@ simple_logger = "5.0.0"
 tokio = { version = "1.42.0", features = ["rt", "fs"] }
 toml = "0.8.19"
 uuid = { version = "1.11.0", features = ["v4"] }
-webkit2gtk = "2.0.1"

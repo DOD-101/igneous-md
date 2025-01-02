@@ -1,10 +1,8 @@
 //! Module containing the [Client] struct.
 //!
 //! For more information see [Client]
-use gtk::{prelude::*, Window, WindowType};
-use std::{io, path::PathBuf, process::exit, time::SystemTime};
+use std::{io, path::PathBuf, time::SystemTime};
 use uuid::Uuid;
-use webkit2gtk::{CacheModel, WebContext, WebContextExt, WebView, WebViewExt};
 
 use crate::{config::Config, convert::md_to_html, paths::Paths};
 
@@ -107,48 +105,5 @@ impl Client {
         self.html = md_to_html(&self.md);
 
         Ok(Some(self.html.clone()))
-    }
-}
-
-// TODO: This viewer isn't create here and I don't like having to call new just to then call start
-// right after. It might be best not to have a struct for this.
-
-/// A struct representing the igneous-md markdown viewer.
-#[derive(Debug)]
-pub struct Viewer {
-    addr: String,
-}
-
-impl Viewer {
-    /// Create a new [Viewer]
-    pub fn new(addr: String) -> Self {
-        Viewer { addr }
-    }
-
-    /// Start the viewer, exiting the program if it fail's.
-    pub fn start(&self) {
-        log::info!("Starting client on {}", self.addr);
-        if gtk::init().is_err() {
-            log::error!("Failed to init gtk. Needed for viewer.");
-            exit(1)
-        }
-
-        let window = Window::new(WindowType::Toplevel);
-        window.set_title("igneous-md viewer");
-        window.set_default_size(800, 600);
-
-        let context = WebContext::default().unwrap();
-        context.set_cache_model(CacheModel::DocumentViewer);
-        context.clear_cache();
-
-        let view = WebView::with_context(&context);
-
-        view.load_uri(&format!("http://{}", self.addr));
-
-        window.add(&view);
-
-        window.show_all();
-
-        gtk::main()
     }
 }
