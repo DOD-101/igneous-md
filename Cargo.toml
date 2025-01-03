@@ -3,7 +3,7 @@ members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.0"                                    # only used by crane (it would be nice to get rid of this)
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -14,6 +14,7 @@ authors = ["David Thievon"]
 
 igneous-md-viewer = { version = "0.1.0", path = "crates/igneous-md-viewer" }
 igneous-md = { version = "0.2.1", path = "crates/igneous-md" }
+clap = { version = "4.5.16", features = ["derive"] }
 
 [workspace.metadata.crane]
 name = "igneous-md-workspace"
