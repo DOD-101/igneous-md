@@ -1,6 +1,6 @@
 # 🌋 Igneous-md
 
-![](<https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FDOD-101%2Figneous-md%2Fmaster%2FCargo.toml&query=package.version&label=Version&color=rgb(20%2C20%2C20)>)
+![](<https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FDOD-101%2Figneous-md%2Frefs%2Fheads%2Fmaster%2Fcrates%2Figneous-md%2FCargo.toml&query=package.version&label=Version&color=rgb(20%2C20%2C20)>)
 [![](https://img.shields.io/badge/Crates.io-orange?style=flat&link=https%3A%2F%2Fcrates.io%2Fcrates%2Figneous-md)](https://crates.io/crates/igneous-md)
 
 > The simple and lightweight markdown framework / viewer written in rust
