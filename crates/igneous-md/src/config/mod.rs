@@ -32,7 +32,7 @@ impl Config {
     /// Attempt to create a new [Config]
     ///
     /// This may fail, since to set [Config::css_paths] we need to read from the Filesystem.
-    pub fn new(paths: Paths) -> io::Result<Self> {
+    pub fn new(paths: &Paths) -> io::Result<Self> {
         let mut config = Self {
             config_dir: paths.get_config_dir(),
             css_dir: paths.get_css_dir(),

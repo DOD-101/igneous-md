@@ -110,6 +110,7 @@ fn rocket() -> Rocket<Build> {
     }
 
     let paths = match Paths::new(
+        cli.args.path.expect("Path is required."),
         cli.args.css_dir.unwrap_or(default_css_dir().to_path_buf()),
         cli.args.css.map(|p| PathBuf::from("/css").join(p)),
     ) {
@@ -122,20 +123,16 @@ fn rocket() -> Rocket<Build> {
     };
 
     // The url of the md file, in the format:
-    // localhost:port/?path=path/to/file
-    let md_url = format!(
-        "localhost:{}/?path={}",
-        cli.args.port,
-        cli.args.path.unwrap_or_default().to_string_lossy()
-    );
+    // localhost:port
+    let address = format!("localhost:{}", cli.args.port);
 
-    if cli.args.browser && open::that_detached(&md_url).is_err() {
+    if cli.args.browser && open::that_detached(&address).is_err() {
         log::warn!("Failed to open browser");
     }
 
     #[cfg(feature = "viewer")]
     if !cli.args.no_viewer {
-        let client = Viewer::new(md_url);
+        let client = Viewer::new(address);
 
         thread::spawn(move || client.start());
     }

@@ -42,10 +42,10 @@ impl Client {
     /// Attempt to create a new [Client]
     ///
     /// This can fail due to it containing a [Config].
-    pub fn new(md_path: PathBuf, paths: Paths) -> io::Result<Self> {
+    pub fn new(paths: &Paths) -> io::Result<Self> {
         Ok(Self {
             id: Uuid::new_v4(),
-            md_path,
+            md_path: paths.get_default_md(),
             md: String::new(),
             last_modified: SystemTime::UNIX_EPOCH,
             html: String::new(),
@@ -71,6 +71,16 @@ impl Client {
         } else {
             Ok(MdChanged::NotChanged)
         }
+    }
+
+    // NOTE: Being able to change this path without actually updating all the values derived from
+    // it creates a strange state, where all of the data is false given the new path, but the user
+    // must actually call a function to get data to update the data. This should probably be
+    // addressed in the future.
+
+    /// Set / Change [Self::md_path]
+    pub fn set_md_path(&mut self, md_path: PathBuf) {
+        self.md_path = md_path;
     }
 
     /// Getter function for [Self::md_path]

@@ -42,20 +42,26 @@ pub fn serve_highlight_js() -> RawJavaScript<&'static str> {
 /// Returns the initial html converted from the md file
 ///
 /// This function only gets called the first time a client requests a markdown document,
-/// any subsequent updates are handled via the websocket see `upgrade_connection`.
-///
-#[get("/?<path>", rank = 2)]
-pub fn get_initial_md(path: &str, paths: &State<Paths>) -> Option<RawHtml<String>> {
-    let mut html = match fs::read_to_string(path) {
+/// any subsequent updates are handled via the websocket see [upgrade_connection()].
+#[get("/?<css>", rank = 2)]
+pub fn get_initial_md(css: Option<String>, paths: &State<Paths>) -> Option<RawHtml<String>> {
+    let mut html = match fs::read_to_string(paths.get_default_md()) {
         Ok(md) => md_to_html(&md),
         Err(e) => {
-            log::error!("Failed to read .md file {}", path);
+            log::error!(
+                "Failed to read .md file {}",
+                paths.get_default_md().to_string_lossy()
+            );
             log::trace!("{}", e);
             return None;
         }
     };
 
-    html = initial_html(&paths.get_default_css().to_string_lossy(), &html);
+    html = initial_html(
+        &css.map(|s| format!("css/{}", s))
+            .unwrap_or(paths.get_default_css().to_string_lossy().to_string()),
+        &html,
+    );
 
     log::trace!("SERVER: Sending: {}", html);
 

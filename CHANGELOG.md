@@ -6,6 +6,10 @@
 
 - Added a binary to igneous-md-viewer to be able to launch to separate from the server
 
+### Changed
+
+- Make client connections persistent between files. This improves performance and helps simplify the code
+
 ## 0.2.1 - 2025-01-03
 
 ### Added

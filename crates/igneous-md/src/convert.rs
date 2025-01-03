@@ -85,10 +85,10 @@ fn post_process_html(html: String) -> String {
 
         let href = attributes
             .get_mut("href")
-            .cloned()
-            .expect("The selector determines that this exists");
+            .expect("The selector ensures the existence of an href with content.")
+            .clone();
 
-        attributes.insert("href".to_string(), format!("/?path={}", href));
+        attributes.insert("onclick", format!("return handle_redirect(\"{}\")", href));
     }
 
     // Serialize the modified DOM back to HTML
@@ -126,7 +126,7 @@ pub fn initial_html(css: &str, body: &str) -> String {
 #[cfg(test)]
 mod test {
     use super::md_to_html;
-    use kuchikiki::traits::*;
+    use kuchikiki::{traits::*, ElementData, NodeDataRef};
 
     #[test]
     fn links() {
@@ -140,24 +140,32 @@ mod test {
 
         let html_ouput = md_input.map(md_to_html);
 
-        let mut hrefs = html_ouput.into_iter().map(|h| {
+        let mut elements = html_ouput.into_iter().map(|h| {
             let document = kuchikiki::parse_html().one(h);
 
-            // Adjust markdown links to API format
-            let link = document
+            document
                 .select_first(r#"a"#)
-                .expect("Selector is hard-coded.");
-
-            let attributes = link.attributes.borrow_mut();
-
-            attributes.get("href").unwrap().to_string()
+                .expect("Selector is hard-coded.")
         });
 
-        assert_eq!(hrefs.next(), Some("https://test.md".to_string()));
-        assert_eq!(hrefs.next(), Some("http://test.md".to_string()));
-        assert_eq!(hrefs.next(), Some("/?path=/test.md".to_string()));
-        assert_eq!(hrefs.next(), Some("/?path=./test.md".to_string()));
-        assert_eq!(hrefs.next(), Some("/?path=../test.md".to_string()));
-        assert_eq!(hrefs.next(), None);
+        assert_links(elements.next().unwrap(), false);
+        assert_links(elements.next().unwrap(), false);
+        assert_links(elements.next().unwrap(), true);
+        assert_links(elements.next().unwrap(), true);
+        assert_links(elements.next().unwrap(), true);
+    }
+
+    fn assert_links(element: NodeDataRef<ElementData>, internal: bool) {
+        let attributes = element.attributes.borrow();
+        if internal {
+            let _onclick = Some(&format!(
+                "handle_redirect(\"{}\")",
+                attributes.get("href").unwrap()
+            ));
+
+            assert!(matches!(attributes.get("onclick"), _onclick))
+        } else {
+            assert!(attributes.get("onclick").is_none())
+        }
     }
 }
