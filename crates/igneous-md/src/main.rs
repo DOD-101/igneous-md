@@ -16,7 +16,7 @@ extern crate rocket;
 use clap::Parser;
 use rocket::{fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
-use std::{fs, io, io::Write, path::PathBuf, process::exit, thread};
+use std::{fs, path::PathBuf, process::exit};
 
 mod cli;
 mod client;
@@ -28,10 +28,16 @@ mod paths;
 
 use cli::{ActionResult, Cli};
 use handlers::*;
-use paths::{default_css_dir, Paths};
+use paths::default_css_dir;
+use paths::Paths;
 
 #[cfg(feature = "viewer")]
 use igneous_md_viewer::Viewer;
+#[cfg(feature = "viewer")]
+use std::thread;
+
+#[cfg(feature = "generate_config")]
+use std::{io, io::Write};
 
 #[launch]
 fn rocket() -> Rocket<Build> {
