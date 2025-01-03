@@ -134,7 +134,7 @@
 
       in
       {
-        checks = rec {
+        checks = {
           # Build the crate as part of `nix flake check` for convenience
           inherit igneous-md igneous-md-viewer;
 
@@ -171,15 +171,6 @@
             inherit src;
           };
 
-          # workspace-cargo-test-all-features = craneLib.mkCargoDerivation (
-          #   commonArgs
-          #   // {
-          #     inherit cargoArtifacts;
-          #     buildPhaseCargoCommand = "cargo test-all-features";
-          #     nativeBuildInputs = commonArgs.nativeBuildInputs;
-          #   }
-          # );
-
           # default = workspace-fmt;
 
         };
@@ -187,6 +178,16 @@
         packages = rec {
           inherit igneous-md igneous-md-viewer igneous-md-release;
           default = igneous-md;
+
+          workspace-cargo-test-all-features = craneLib.mkCargoDerivation (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              buildPhaseCargoCommand = "RUSTFLAGS=\"-D warnings\" cargo test-all-features";
+              nativeBuildInputs = commonArgs.nativeBuildInputs;
+            }
+          );
+
         };
 
         apps = rec {
@@ -194,7 +195,7 @@
             drv = igneous-md;
           };
 
-          igneous-md-viewer = flake-utils.lib.mkApp {
+          igneous-md-viewer-app = flake-utils.lib.mkApp {
             drv = igneous-md-viewer;
           };
 

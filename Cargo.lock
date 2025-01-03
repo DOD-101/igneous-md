@@ -1449,6 +1449,7 @@ dependencies = [
 name = "igneous-md-viewer"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "gtk",
  "webkit2gtk",
 ]
