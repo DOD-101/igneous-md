@@ -3,9 +3,9 @@
 ![](<https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FDOD-101%2Figneous-md%2Fmaster%2FCargo.toml&query=package.version&label=Version&color=rgb(20%2C20%2C20)>)
 [![](https://img.shields.io/badge/Crates.io-orange?style=flat&link=https%3A%2F%2Fcrates.io%2Fcrates%2Figneous-md)](https://crates.io/crates/igneous-md)
 
-> The simple and lightweight markdown viewer written in rust
+> The simple and lightweight markdown framework / viewer written in rust
 
-Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax) compatible markdown viewer with a focus of staying lightweight and minimal.
+Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax) compatible markdown viewer and viewer framework with a focus of staying lightweight and extensible
 
 ## Features
 
@@ -24,27 +24,38 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [ ] Write tests
 
-- [x] Add default css / examples
+- [ ] Add optional support for [markdown highlight notes](https://github.com/orgs/community/discussions/16925)
 
-- [x] Add syntax highlighting
+- [ ] Make the viewer be able to re-attach to the server
 
-- [x] Move from `fetch` to websockets
+- [ ] Introduce proper hot-reloading for the config
 
-- [x] Export HTML
-
-- [x] Add docs
+- [ ] Optimize performance
 
 ## Usage
 
 ```
-igneous-md --path path/to/file.md
+igneous-md path/to/file.md
 ```
 
 For more information see [docs.md](./docs.md)
 
-## How does it work?
+## A markdown viewer Framework?
 
-Igneous-md works by running a lightweight server in the background, to which any number of clients may connect to. This means you can view your markdown in the provided viewer, or if you prefer in the browser.
+Yes. It's simpler than it sounds. 
+
+Since igneous-md works by using a server in the background and then communicates with the built-in viewer, as well as the browser, 
+using https and websockets anyone could use this to write their own viewer. 
+
+The benefits of this being you would receive all of the hot-reloading and conversion from md to html for free, 
+while having full freedom to implement their viewer however they would like. 
+
+The only real limitation on this is what the websocket json-protocol is written to support. (PRs welcome)
+
+This aspect of igneous-md is still WIP, but if you already want to get started check out [`./crates/igneous-md/src/handlers/ws.rs`](./crates/igneous-md/src/handlers/ws.rs)
+and have a look at is possible right now.
+
+If you want to only use igneous-md for this be sure to disable the `viewer` cargo feature.
 
 ## Attribution
 
