@@ -11,3 +11,4 @@ authors.workspace = true
 [dependencies]
 webkit2gtk = "2.0.1"
 gtk = "0.18.1"
+clap.workspace = true
