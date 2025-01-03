@@ -1,9 +1,16 @@
 //! Module containing all CLI related functionality
 use clap::{Args, Parser, Subcommand};
 use rocket::log::LogLevel as RocketLogLevel;
-use std::{fmt::Display, fs, path::PathBuf, result::Result, str::FromStr};
+use std::{fs, path::PathBuf, result::Result, str::FromStr};
 
-use crate::{config, convert, export, paths::default_css_dir};
+use crate::{convert, export};
+
+#[cfg(feature = "generate_config")]
+use crate::config;
+#[cfg(feature = "generate_config")]
+use crate::paths::default_css_dir;
+#[cfg(feature = "generate_config")]
+use std::fmt::Display;
 
 // HACK: I do not like the fact that args and command are not really mutually exclusive. I couldn't
 // find a way to do this without using subcommands, which I do not want to do, since it doesn't
@@ -137,11 +144,13 @@ pub enum ActionResult {
 }
 
 /// Custom errors that may be emited by [Cli::handle_actions]
+#[cfg(feature = "generate_config")]
 #[derive(Debug)]
 pub enum ActionError {
     ConfigDirExists,
 }
 
+#[cfg(feature = "generate_config")]
 impl Display for ActionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -153,6 +162,7 @@ impl Display for ActionError {
     }
 }
 
+#[cfg(feature = "generate_config")]
 impl std::error::Error for ActionError {}
 
 /// Wrapper around [log::LevelFilter] to allow conversion to [RocketLogLevel]
