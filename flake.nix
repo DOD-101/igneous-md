@@ -190,7 +190,7 @@
         };
 
         apps = rec {
-          igneous-md = flake-utils.lib.mkApp {
+          igneous-md-app = flake-utils.lib.mkApp {
             drv = igneous-md;
           };
 
@@ -198,7 +198,7 @@
             drv = igneous-md-viewer;
           };
 
-          default = igneous-md;
+          default = igneous-md-app;
         };
 
         devShells.default = craneLib.devShell {
