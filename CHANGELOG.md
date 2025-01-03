@@ -2,10 +2,12 @@
 
 ## [Unreleased]
 
+## 0.2.1 - 2025-01-03
+
 ### Added
 
 - Generate more user friendly default config files
-- Add the viewer as its own crate and a feature in the server part
+- Add the viewer as its own crate and add a feature in the server part
 
 ### Changed
 
