@@ -5,11 +5,15 @@ resolver = "2"
 [workspace.package]
 version = "0.2.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/DOD-101/igneous-md"
+authors = ["David Thievon"]
 
 [workspace.dependencies]
 
 igneous-md-viewer = { version = "0.1.0", path = "crates/igneous-md-viewer" }
-igneous-md = { version = "0.2.0", path = "crates/igneous-md" }
+igneous-md = { version = "0.2.1", path = "crates/igneous-md" }
 
 [workspace.metadata.crane]
 name = "igneous-md-workspace"
