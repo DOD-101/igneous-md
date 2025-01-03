@@ -14,7 +14,7 @@ use rocket::{
     },
     State,
 };
-use rocket_ws::{Channel, Message, WebSocket};
+use rocket_ws::{stream::DuplexStream, Channel, Message, WebSocket};
 use std::{io, path::PathBuf};
 
 use crate::{client::Client, export::export, paths::Paths};
@@ -106,14 +106,11 @@ pub async fn upgrade_connection(
                     _ = interval.tick()=> {
                         if let Ok(Some(html)) = client.get_latest_html_if_changed() {
                             log::info!("Sending new html");
-                            let _ = stream.send(
-                                Message::Text(
-                                    serde_json::to_string(&ServerMsg {
+                            let _ = stream.send_server_msg(
+                                    &ServerMsg {
                                         r#type: ServerMsgType::HtmlUpdate,
                                         body: html,
-                                    })
-                                    .expect("Failed to turn ServerMsg into json"),
-                                )
+                                    }
                             ).await;
                         }
                     }
@@ -131,9 +128,8 @@ pub async fn upgrade_connection(
 
                                             log::info!("Sending ws message: {:?}", return_msg);
 
-                                            let _ = stream.send(
-                                                Message::Text(serde_json::to_string(&return_msg)
-                                                              .expect("Failed to turn ServerMsg into json"))
+                                            let _ = stream.send_server_msg(
+                                                &return_msg
                                             ).await;
                                         } else {
                                             log::warn!("Invalid client Message: {}", msg_string)
@@ -195,5 +191,24 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
                 ServerMsg::success()
             }
         }
+    }
+}
+
+trait SendServerMsg {
+    // add code here
+    fn send_server_msg(
+        &mut self,
+        msg: &ServerMsg,
+    ) -> rocket::futures::sink::Send<'_, rocket_ws::stream::DuplexStream, rocket_ws::Message>;
+}
+
+impl SendServerMsg for DuplexStream {
+    // add code here
+    //
+    fn send_server_msg(
+        &mut self,
+        msg: &ServerMsg,
+    ) -> rocket::futures::sink::Send<'_, rocket_ws::stream::DuplexStream, rocket_ws::Message> {
+        self.send(Message::Text(serde_json::to_string(msg).expect("ERR")))
     }
 }

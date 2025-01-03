@@ -39,6 +39,15 @@ function update_css(css_path) {
 	oldStyleSheet.parentNode.removeChild(oldStyleSheet);
 }
 
+function handle_redirect() {
+	socket.send(
+		JSON.stringify({
+			type: "Redirect",
+			body: this.href,
+		}),
+	);
+}
+
 const url = new URL(window.location.href);
 
 const params = new URLSearchParams(url.search);

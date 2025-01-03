@@ -14,7 +14,12 @@ use igneous_md_viewer::Viewer;
 fn main() -> Result<(), BoolError> {
     let cli = Cli::parse();
 
-    let viewer = Viewer::new(format!("localhost:{}/?path={}", cli.port, cli.path));
+    let viewer = Viewer::new(format!(
+        "localhost:{}/?path={}{}",
+        cli.port,
+        cli.path,
+        cli.css.map(|s| format!("&css={}", s)).unwrap_or_default()
+    ));
 
     viewer.start()?;
 
@@ -25,6 +30,8 @@ fn main() -> Result<(), BoolError> {
 pub struct Cli {
     #[arg(default_value = "README.md")]
     pub path: String,
-    #[arg(default_value = "2323")]
+    #[arg(long, default_value = "2323")]
     pub port: u16,
+    #[arg(short, long)]
+    pub css: Option<String>,
 }

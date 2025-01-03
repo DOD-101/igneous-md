@@ -83,12 +83,9 @@ fn post_process_html(html: String) -> String {
     for link in links {
         let mut attributes = link.attributes.borrow_mut();
 
-        let href = attributes
-            .get_mut("href")
-            .cloned()
-            .expect("The selector determines that this exists");
+        attributes.remove("href");
 
-        attributes.insert("href".to_string(), format!("/?path={}", href));
+        attributes.insert("onclick", "handle_redirect()".to_string());
     }
 
     // Serialize the modified DOM back to HTML
