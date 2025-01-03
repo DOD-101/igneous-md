@@ -10,11 +10,7 @@ The simplest way to install is to run `cargo install igneous-md`
 
 1. Make sure you have `webkit2gtk` installed on your system. You also need to install the `segoe-ui`-font and `apple-emoji`s for the GitHub style.
 
-2. Create the config directory at `~/.config/igneous-md/`
-
-3. Copy the contents of `example/` to your config directory
-
-4. Find a markdown file you want to view and run `igneous-md --path path/to/file.md`
+2. Find a markdown file you want to view and run `igneous-md path/to/file.md`
 
 ## Configuration
 
