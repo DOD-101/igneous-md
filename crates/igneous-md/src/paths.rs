@@ -40,6 +40,8 @@ pub struct Paths {
     ///
     /// This is not an actual path on disk, but rather the API path for the css file
     default_css: PathBuf,
+    /// The default md path sent to new clients
+    default_md: PathBuf,
 }
 
 impl Paths {
@@ -47,12 +49,21 @@ impl Paths {
     ///
     /// This can fail, only if no `default_css` is supplied, since it needs to read css files from
     /// disk.
-    pub fn new(css_dir: PathBuf, default_css: Option<PathBuf>) -> io::Result<Self> {
+    pub fn new(
+        default_md: PathBuf,
+        css_dir: PathBuf,
+        default_css: Option<PathBuf>,
+    ) -> io::Result<Self> {
         Ok(Self {
+            default_md,
             config_dir: default_config_dir().into(),
             default_css: default_css.unwrap_or(Self::determine_default_css(&css_dir)?),
             css_dir,
         })
+    }
+    /// Getter function for [Self::default_md]
+    pub fn get_default_md(&self) -> PathBuf {
+        self.default_md.clone()
     }
 
     /// Getter function for [Self::config_dir]

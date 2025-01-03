@@ -1,30 +1,41 @@
 document.addEventListener("keydown", (event) => {
-	if (event.key === "c") {
-		socket.send(
-			JSON.stringify({
-				type: "ChangeCssNext",
-			}),
-		);
-		return;
-	}
+	switch (event.key) {
+		case "c":
+			socket.send(
+				JSON.stringify({
+					type: "ChangeCssNext",
+				}),
+			);
+			break;
 
-	if (event.key === "C") {
-		socket.send(
-			JSON.stringify({
-				type: "ChangeCssPrev",
-			}),
-		);
-		return;
-	}
-});
+		case "C":
+			socket.send(
+				JSON.stringify({
+					type: "ChangeCssPrev",
+				}),
+			);
+			break;
 
-document.addEventListener("keydown", (event) => {
-	if (event.key === "e") {
-		socket.send(
-			JSON.stringify({
-				type: "ExportHtml",
-			}),
-		);
+		case "e":
+			socket.send(
+				JSON.stringify({
+					type: "ExportHtml",
+				}),
+			);
+			break;
+
+		case "r":
+			socket.send(
+				JSON.stringify({
+					type: "RedirectDefault",
+				}),
+			);
+
+			window.scrollTo(0, 0);
+			break;
+
+		default:
+			break;
 	}
 });
 
@@ -37,6 +48,19 @@ function update_css(css_path) {
 	newStyleSheet.id = "md-stylesheet";
 	document.head.appendChild(newStyleSheet);
 	oldStyleSheet.parentNode.removeChild(oldStyleSheet);
+}
+
+function handle_redirect(href) {
+	socket.send(
+		JSON.stringify({
+			type: "Redirect",
+			body: href,
+		}),
+	);
+
+	window.scrollTo(0, 0);
+
+	return false;
 }
 
 const url = new URL(window.location.href);

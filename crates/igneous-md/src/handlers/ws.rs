@@ -14,7 +14,7 @@ use rocket::{
     },
     State,
 };
-use rocket_ws::{Channel, Message, WebSocket};
+use rocket_ws::{stream::DuplexStream, Channel, Message, WebSocket};
 use std::{io, path::PathBuf};
 
 use crate::{client::Client, export::export, paths::Paths};
@@ -24,6 +24,8 @@ use crate::{client::Client, export::export, paths::Paths};
 struct ClientMsg {
     /// The type of message
     r#type: ClientMsgType,
+    /// Optional content of the message (some [Self::type]s require this)
+    body: Option<String>,
 }
 
 /// Different types of messages the client can send
@@ -35,6 +37,10 @@ enum ClientMsgType {
     ChangeCssPrev,
     /// Request for the server to export the html (save it to disk)
     ExportHtml,
+    /// Request for the server to change the md file being viewed
+    Redirect,
+    /// Request for the server to change the md file being viewed back to the default
+    RedirectDefault,
 }
 
 /// Struct representing a message from the server back to the client
@@ -79,19 +85,25 @@ enum ServerMsgType {
 
 /// Handles clients upgrading to Websocket
 ///
-/// Once this succeeds the client is properly connected and will receive live-updates for the
-/// `path` (the md file). It will also now be able to request things from / communicate with
-/// the server via the Websocket.
-#[get("/ws?<path>")]
+/// Once this succeeds the client is properly connected and will receive live-updates.
+/// It will also now be able to request things from / communicate with the server via the Websocket.
+///
+/// Changing the viewed file is possible via [ClientMsgType::Redirect]
+#[get("/ws")]
 pub async fn upgrade_connection(
     ws: WebSocket,
-    path: &str,
     paths: &State<Paths>,
 ) -> io::Result<Channel<'static>> {
-    let mut client = match Client::new(PathBuf::from(".").join(path), paths.inner().clone()) {
+    let paths = paths.inner().clone();
+
+    let mut client = match Client::new(&paths) {
         Ok(c) => c,
         Err(e) => {
-            log::error!("Failed to init client with path: {} Error: {}", path, e);
+            log::error!(
+                "Failed to init client with default path: {} Error: {}",
+                paths.get_default_md().to_string_lossy(),
+                e
+            );
             return Err(e);
         }
     };
@@ -106,14 +118,11 @@ pub async fn upgrade_connection(
                     _ = interval.tick()=> {
                         if let Ok(Some(html)) = client.get_latest_html_if_changed() {
                             log::info!("Sending new html");
-                            let _ = stream.send(
-                                Message::Text(
-                                    serde_json::to_string(&ServerMsg {
+                            let _ = stream.send_server_msg(
+                                    &ServerMsg {
                                         r#type: ServerMsgType::HtmlUpdate,
                                         body: html,
-                                    })
-                                    .expect("Failed to turn ServerMsg into json"),
-                                )
+                                    }
                             ).await;
                         }
                     }
@@ -127,13 +136,12 @@ pub async fn upgrade_connection(
                                     Message::Text(msg_string) => {
                                         if let Ok(client_msg) = serde_json::from_str::<ClientMsg>(&msg_string) {
 
-                                            let return_msg = handle_client_msg(client_msg, &mut client);
+                                            let return_msg = handle_client_msg(client_msg, &mut client, &paths);
 
                                             log::info!("Sending ws message: {:?}", return_msg);
 
-                                            let _ = stream.send(
-                                                Message::Text(serde_json::to_string(&return_msg)
-                                                              .expect("Failed to turn ServerMsg into json"))
+                                            let _ = stream.send_server_msg(
+                                                &return_msg
                                             ).await;
                                         } else {
                                             log::warn!("Invalid client Message: {}", msg_string)
@@ -162,7 +170,7 @@ pub async fn upgrade_connection(
 }
 
 /// [upgrade_connection()] uses this to handle the incoming messages from the client
-fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
+fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> ServerMsg {
     match msg.r#type {
         ClientMsgType::ChangeCssNext => {
             let path = client.config.next_css();
@@ -195,5 +203,52 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
                 ServerMsg::success()
             }
         }
+        ClientMsgType::Redirect => {
+            if let Some(file) = msg.body {
+                client.set_md_path(PathBuf::from(file));
+
+                return match client.get_latest_html() {
+                    Ok(h) => ServerMsg {
+                        r#type: ServerMsgType::HtmlUpdate,
+                        body: h,
+                    },
+
+                    Err(e) => ServerMsg::error(e.to_string()),
+                };
+            }
+
+            ServerMsg::error("Invalid Redirect link. No body.".to_string())
+        }
+        ClientMsgType::RedirectDefault => {
+            client.set_md_path(paths.get_default_md());
+
+            match client.get_latest_html() {
+                Ok(h) => ServerMsg {
+                    r#type: ServerMsgType::HtmlUpdate,
+                    body: h,
+                },
+
+                Err(e) => ServerMsg::error(e.to_string()),
+            }
+        }
+    }
+}
+
+trait SendServerMsg {
+    // add code here
+    fn send_server_msg(
+        &mut self,
+        msg: &ServerMsg,
+    ) -> rocket::futures::sink::Send<'_, rocket_ws::stream::DuplexStream, rocket_ws::Message>;
+}
+
+impl SendServerMsg for DuplexStream {
+    // add code here
+    //
+    fn send_server_msg(
+        &mut self,
+        msg: &ServerMsg,
+    ) -> rocket::futures::sink::Send<'_, rocket_ws::stream::DuplexStream, rocket_ws::Message> {
+        self.send(Message::Text(serde_json::to_string(msg).expect("ERR")))
     }
 }
