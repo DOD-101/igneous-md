@@ -278,7 +278,7 @@ mod test {
 
     #[test]
     #[ignore = "only run on change of config file version."]
-    fn fetch_config_files_test() {
+    fn fetch_errors() {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime.");
         let contents = rt
             .block_on(fetch_config_files())

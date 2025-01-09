@@ -178,3 +178,103 @@ impl Client {
         Ok(Some(self.html.clone()))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    impl Client {
+        pub fn new_testing(config: Arc<Config>) -> Self {
+            Self {
+                id: Uuid::new_v4(),
+                md_path: PathBuf::new(),
+                md: String::new(),
+                last_modified: SystemTime::UNIX_EPOCH,
+                html: String::new(),
+                config,
+                current_css_index: 0,
+            }
+        }
+    }
+
+    #[test]
+    fn next_css() {
+        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+            PathBuf::from("style1.css"),
+            PathBuf::from("style2.css"),
+            PathBuf::from("style3.css"),
+        ])));
+
+        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style3.css")));
+    }
+
+    #[test]
+    fn previous_css() {
+        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+            PathBuf::from("style1.css"),
+            PathBuf::from("style2.css"),
+            PathBuf::from("style3.css"),
+        ])));
+
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style2.css")));
+    }
+
+    #[test]
+    fn next_previous_mixed_1() {
+        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+            PathBuf::from("style1.css"),
+            PathBuf::from("style2.css"),
+            PathBuf::from("style3.css"),
+        ])));
+
+        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
+    }
+
+    #[test]
+    fn next_previous_mixed_2() {
+        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+            PathBuf::from("style1.css"),
+            PathBuf::from("style2.css"),
+            PathBuf::from("style3.css"),
+        ])));
+
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
+    }
+
+    #[test]
+    fn next_previous_on_single() {
+        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![PathBuf::from(
+            "style1.css",
+        )])));
+
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
+    }
+
+    #[test]
+    fn next_previous_on_empty() {
+        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![])));
+
+        assert!(client.next_css().is_none());
+        assert!(client.previous_css().is_none());
+    }
+}

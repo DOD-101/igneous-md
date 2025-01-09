@@ -75,3 +75,14 @@ impl Config {
         Ok(())
     }
 }
+
+#[cfg(test)]
+impl Config {
+    pub fn new_testing(css_paths: Vec<PathBuf>) -> Self {
+        Self {
+            config_dir: PathBuf::new(),
+            css_dir: PathBuf::new(),
+            css_paths,
+        }
+    }
+}
