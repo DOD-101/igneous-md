@@ -7,11 +7,7 @@
 //!
 //! The main item of this config is the [Config] struct, but it also contains [generate] to
 //! generate the default config on disk.
-use itertools::Itertools;
-use std::{
-    fs, io,
-    path::{Path, PathBuf},
-};
+use std::{io, path::PathBuf};
 
 use crate::paths::Paths;
 
@@ -70,7 +66,7 @@ impl Config {
 
     /// Reads [Self::css_dir], updating [Self::css_paths]
     pub fn update_css_paths(&mut self) -> io::Result<()> {
-        let all_css: Vec<PathBuf> = read_css_dir(&self.css_dir)?;
+        let all_css: Vec<PathBuf> = crate::paths::read_css_dir(&self.css_dir)?;
 
         self.css_paths = all_css;
 
@@ -78,40 +74,4 @@ impl Config {
 
         Ok(())
     }
-}
-
-// NOTE: Perhaps this should be under paths
-
-/// Will attempt to read the given `css_dir` and organize the output
-///
-/// This function will:
-///
-/// 1. Only include `.css` files
-///
-/// 2. Return only names prefixed with `/css`
-///
-/// 3. Sort them by their name
-pub fn read_css_dir(css_dir: &Path) -> io::Result<Vec<PathBuf>> {
-    Ok(fs::read_dir(css_dir)?
-        .filter_map(|possible_entry| {
-            let path = possible_entry.ok()?.path();
-
-            if path.is_file() && path.extension().is_some_and(|s| s == "css") {
-                return Some(
-                    PathBuf::from("/css").join(
-                        path.strip_prefix(css_dir)
-                            .expect("We read the files from the css_dir."),
-                    ),
-                );
-            }
-
-            None
-        })
-        .sorted_by_key(|p| {
-            PathBuf::from(
-                p.file_name()
-                    .expect("We checked that all entries are files."),
-            )
-        })
-        .collect())
 }
