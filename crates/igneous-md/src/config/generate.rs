@@ -1,8 +1,9 @@
 //! Generation of the config. Disabled when compiled without the `generate_config` feature.
 //!
 //! This is the only part of the application that requires an internet connection.
+use itertools::Itertools;
 use regex::Regex;
-use std::{collections::HashSet, path::Path};
+use std::path::Path;
 
 /// Copyright notice for highlight.js files
 const NOTICE_HLJS: &str = r#"
@@ -38,25 +39,7 @@ Changes:
 /// The function is async to speed up the fetching of the remote files and to allow concurrently writing
 /// to disk.
 pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    const HLJS_CSS_VERSION: &str = "11.11.1";
-
-    const GH_CSS_VERSION: &str = "5.8.1";
-
-    let request_client = reqwest::Client::default();
-
-    let gh_dark_css = request_client.get(format!("https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v{GH_CSS_VERSION}/github-markdown-dark.css")).send();
-    let gh_dark_hljs_css = request_client.get(format!("https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/{HLJS_CSS_VERSION}/src/styles/github-dark.css")).send();
-
-    let gh_light_css = request_client.get(format!("https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v{GH_CSS_VERSION}/github-markdown-light.css")).send();
-    let gh_light_hljs_css = request_client.get(format!("https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/{HLJS_CSS_VERSION}/src/styles/github.css")).send();
-
-    // Wait for all responses and write files concurrently
-    let (dark_res, dark_hljs_res, light_res, light_hljs_res) = tokio::try_join!(
-        gh_dark_css.await?.text(),
-        gh_dark_hljs_css.await?.text(),
-        gh_light_css.await?.text(),
-        gh_light_hljs_css.await?.text()
-    )?;
+    let (dark_res, dark_hljs_res, light_res, light_hljs_res) = fetch_config_files().await?;
 
     tokio::try_join!(
         async {
@@ -98,6 +81,33 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
+/// Fetch the base styles sheets from GitHub
+///
+/// The style sheets are specifically for the GitHub dark and light themes.
+///
+/// The tuples fields are: (dark, dark_hljs, light, light_hljs)
+async fn fetch_config_files() -> reqwest::Result<(String, String, String, String)> {
+    const HLJS_CSS_VERSION: &str = "11.11.1";
+
+    const GH_CSS_VERSION: &str = "5.8.1";
+
+    let request_client = reqwest::Client::default();
+
+    let gh_dark_css = request_client.get(format!("https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v{GH_CSS_VERSION}/github-markdown-dark.css")).send();
+    let gh_dark_hljs_css = request_client.get(format!("https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/{HLJS_CSS_VERSION}/src/styles/github-dark.css")).send();
+
+    let gh_light_css = request_client.get(format!("https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v{GH_CSS_VERSION}/github-markdown-light.css")).send();
+    let gh_light_hljs_css = request_client.get(format!("https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/{HLJS_CSS_VERSION}/src/styles/github.css")).send();
+
+    // Wait for all responses and write files concurrently
+    tokio::try_join!(
+        gh_dark_css.await?.text(),
+        gh_dark_hljs_css.await?.text(),
+        gh_light_css.await?.text(),
+        gh_light_hljs_css.await?.text()
+    )
+}
+
 /// Adjust the given css String
 ///
 /// Steps:
@@ -123,16 +133,6 @@ fn adjust_css(css: String) -> String {
     )
 }
 
-/// Replace all hex color codes with the corresponding variable.
-///
-/// In the [Vec<(String, String)>], the first value is the hex color value to replace and the second is the
-/// variable name to replace it with.
-fn replace_hexes(css: String, pairs: Vec<(String, String)>) -> String {
-    pairs.iter().fold(css, |css, (hex, var)| {
-        css.replace(hex, &format!("var({})", var))
-    })
-}
-
 /// Create the css for the variables
 ///
 /// The [Vec<(String, String)>] format is the same as for [replace_hexes].
@@ -146,6 +146,16 @@ fn create_css_vars(pairs: Vec<(String, String)>) -> String {
     result.push('}');
 
     result
+}
+
+/// Replace all hex color codes with the corresponding variable.
+///
+/// In the [Vec<(String, String)>], the first value is the hex color value to replace and the second is the
+/// variable name to replace it with.
+fn replace_hexes(css: String, pairs: Vec<(String, String)>) -> String {
+    pairs.iter().fold(css, |css, (hex, var)| {
+        css.replace(hex, &format!("var({})", var))
+    })
 }
 
 /// Function used to find hex color values in css
@@ -164,19 +174,126 @@ fn create_css_vars(pairs: Vec<(String, String)>) -> String {
 ///
 /// The returned [Vec<(String, String)>] format is the same as for [replace_hexes].
 fn find_hexes(text: &str) -> Vec<(String, String)> {
-    let re = Regex::new(r"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b").unwrap();
+    let re = Regex::new(r"#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b")
+        .expect("Regex is hard-coded.");
 
-    // Find all matches in the text and collect them into a Vec
-    let matches: Vec<String> = re
-        .find_iter(text) // Iterate over all matches
-        .map(|mat| mat.as_str().to_string()) // Convert matched strings to String
-        .collect();
-
-    let hexes: HashSet<String> = matches.into_iter().collect();
-
-    hexes
-        .into_iter()
+    re.find_iter(text) // Iterate over all matches
+        .map(|hex| hex.as_str().to_string())
+        .unique()
         .enumerate()
         .map(|(index, hex)| (hex, format!("--color-{}", index)))
         .collect()
+}
+
+#[cfg(test)]
+mod test {
+    use super::{create_css_vars, fetch_config_files, find_hexes, replace_hexes};
+
+    fn input_css() -> &'static str {
+        r#"
+        .class {
+            background-color: #f00;
+        }
+
+        #id {
+            color: #fe00ff;
+            background: linear-gradient(#87ceeb, #4682b4);
+        }
+
+        el {
+            border: 1px solid #ff1100ee;
+            background-color: #f00; /* test to make sure duplicates are filtered out properly */
+        }
+        "#
+    }
+
+    fn output_pairs() -> Vec<(String, String)> {
+        vec![
+            ("#f00".to_string(), "--color-0".to_string()),
+            ("#fe00ff".to_string(), "--color-1".to_string()),
+            ("#87ceeb".to_string(), "--color-2".to_string()),
+            ("#4682b4".to_string(), "--color-3".to_string()),
+            ("#ff1100ee".to_string(), "--color-4".to_string()),
+        ]
+    }
+
+    #[test]
+    fn find_hexes_test() {
+        let input = input_css();
+
+        assert_eq!(find_hexes(input), output_pairs());
+    }
+
+    #[test]
+    fn replace_hexes_test() {
+        let input = input_css();
+
+        // NOTE: Don't forget to update this when changing input_css()
+        let expected_output = r#"
+        .class {
+            background-color: var(--color-0);
+        }
+
+        #id {
+            color: var(--color-1);
+            background: linear-gradient(var(--color-2), var(--color-3));
+        }
+
+        el {
+            border: 1px solid var(--color-4);
+            background-color: var(--color-0); /* test to make sure duplicates are filtered out properly */
+        }
+        "#;
+
+        assert_eq!(
+            replace_hexes(input.to_string(), output_pairs()),
+            expected_output
+        )
+    }
+
+    #[test]
+    fn create_css_vars_test() {
+        let pairs = output_pairs();
+        let expected_output = format!(
+            r#":root {{
+{}: {};
+{}: {};
+{}: {};
+{}: {};
+{}: {};
+}}"#,
+            pairs[0].1,
+            pairs[0].0,
+            pairs[1].1,
+            pairs[1].0,
+            pairs[2].1,
+            pairs[2].0,
+            pairs[3].1,
+            pairs[3].0,
+            pairs[4].1,
+            pairs[4].0,
+        );
+        assert_eq!(create_css_vars(output_pairs()), expected_output)
+    }
+
+    #[test]
+    #[ignore = "only run on change of config file version."]
+    fn fetch_config_files_test() {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime.");
+        let contents = rt
+            .block_on(fetch_config_files())
+            .expect("Failed to fetch files from GitHub. Do you have network access?");
+
+        // Test against 404 errors
+        assert!(!contents.0.starts_with("404: Not Found"));
+        assert!(!contents.1.starts_with("404: Not Found"));
+        assert!(!contents.2.starts_with("404: Not Found"));
+        assert!(!contents.3.starts_with("404: Not Found"));
+
+        // Test to make sure the files are long enough, anything shorter would indicate an error
+        assert!(contents.0.len() > 100);
+        assert!(contents.1.len() > 100);
+        assert!(contents.2.len() > 100);
+        assert!(contents.3.len() > 100);
+    }
 }
