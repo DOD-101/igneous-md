@@ -15,9 +15,9 @@ use rocket::{
     State,
 };
 use rocket_ws::{stream::DuplexStream, Channel, Message, WebSocket};
-use std::{io, path::PathBuf};
+use std::{io, path::PathBuf, sync::Arc};
 
-use crate::{client::Client, export::export, paths::Paths};
+use crate::{client::Client, config::Config, export::export, paths::Paths};
 
 /// Struct representing a message from the client
 #[derive(Deserialize, Debug)]
@@ -93,20 +93,11 @@ enum ServerMsgType {
 pub async fn upgrade_connection(
     ws: WebSocket,
     paths: &State<Paths>,
+    config: &State<Arc<Config>>,
 ) -> io::Result<Channel<'static>> {
     let paths = paths.inner().clone();
 
-    let mut client = match Client::new(&paths) {
-        Ok(c) => c,
-        Err(e) => {
-            log::error!(
-                "Failed to init client with default path: {} Error: {}",
-                paths.get_default_md().to_string_lossy(),
-                e
-            );
-            return Err(e);
-        }
-    };
+    let mut client = Client::new(&paths, config.inner().clone());
 
     Ok(ws.channel(move |mut stream| {
         Box::pin(async move {
@@ -173,7 +164,7 @@ pub async fn upgrade_connection(
 fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> ServerMsg {
     match msg.r#type {
         ClientMsgType::ChangeCssNext => {
-            let path = client.config.next_css();
+            let path = client.next_css();
 
             if let Some(path) = path {
                 ServerMsg {
@@ -185,7 +176,7 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
             }
         }
         ClientMsgType::ChangeCssPrev => {
-            let path = client.config.previous_css();
+            let path = client.previous_css();
 
             if let Some(path) = path {
                 ServerMsg {

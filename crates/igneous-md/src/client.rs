@@ -1,15 +1,23 @@
 //! Module containing the [Client] struct.
 //!
 //! For more information see [Client]
-use std::{io, path::PathBuf, time::SystemTime};
+use std::{io, path::PathBuf, sync::Arc, time::SystemTime};
 use uuid::Uuid;
 
 use crate::{config::Config, convert::md_to_html, paths::Paths};
 
-/// Struct containing all data needed about the client by the websocket
+/// All data relating to a client connected via websocket.
+///
+/// This Client is only dropped when the websocket is closed, which is most cases means the client
+/// has disconnected.
 ///
 /// This is where the live reloading of the `.md` files is implemented and all data needed for it
 /// stored.
+///
+/// The Client also contains an [`Arc<Config>`] so that it can access the shared config state of the
+/// application.
+///
+/// See also: [crate::handlers::upgrade_connection]
 #[derive(Debug, Clone)]
 pub struct Client {
     /// id of the client, currently not used
@@ -23,8 +31,10 @@ pub struct Client {
     md: String,
     /// The markdown from the file
     html: String,
-    /// Contained [Config] for the client
-    pub config: Config,
+    /// [Config] shared between all clients
+    pub config: Arc<Config>,
+    /// The current position in [Config::css_paths]
+    current_css_index: usize,
 }
 
 // NOTE: We could implement conversions to booleans here
@@ -42,15 +52,16 @@ impl Client {
     /// Attempt to create a new [Client]
     ///
     /// This can fail due to it containing a [Config].
-    pub fn new(paths: &Paths) -> io::Result<Self> {
-        Ok(Self {
+    pub fn new(paths: &Paths, config: Arc<Config>) -> Self {
+        Self {
             id: Uuid::new_v4(),
             md_path: paths.get_default_md(),
             md: String::new(),
             last_modified: SystemTime::UNIX_EPOCH,
             html: String::new(),
-            config: Config::new(paths)?,
-        })
+            config,
+            current_css_index: 0,
+        }
     }
 
     /// Read [Self::md_path] to a string and set [Self::md] to it
@@ -100,6 +111,56 @@ impl Client {
         Ok(self
             .get_latest_html_if_changed()?
             .unwrap_or(self.html.clone()))
+    }
+
+    /// Get the next css file in [Self::config.css_paths], only returning [None] if it is empty.
+    ///
+    /// ## Note:
+    ///
+    /// The [Self::next_css] and [Self::previous_css] functions work by moving a pointer.
+    ///
+    /// Keep this in mind, as it differs from an [std::iter::Iterator]
+    pub fn next_css(&mut self) -> Option<PathBuf> {
+        if self.config.get_css_paths().is_empty() {
+            return None;
+        }
+
+        self.current_css_index = (self.current_css_index + 1) % self.config.get_css_paths().len();
+
+        self.config
+            .get_css_paths()
+            .get(self.current_css_index)
+            .cloned()
+    }
+
+    /// Get the previous css file in [Self::config.css_paths], only returning [None] if it is empty.
+    ///
+    /// ## Note:
+    ///
+    /// See [Self::next_css]
+    pub fn previous_css(&mut self) -> Option<PathBuf> {
+        if self.config.get_css_paths().is_empty() {
+            return None;
+        }
+
+        self.current_css_index = self
+            .current_css_index
+            .checked_sub(1)
+            .unwrap_or(self.config.get_css_paths().len() - 1);
+
+        self.config
+            .get_css_paths()
+            .get(self.current_css_index)
+            .cloned()
+    }
+
+    /// Get the current css file from [Self::config.css_paths] without changing the index
+    #[allow(dead_code)]
+    pub fn current_css(&self) -> Option<PathBuf> {
+        self.config
+            .get_css_paths()
+            .get(self.current_css_index)
+            .cloned()
     }
 
     /// Checks if the`.md` file has changed, if so returning the new html else returning [None]
