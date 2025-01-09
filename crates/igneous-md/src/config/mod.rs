@@ -1,5 +1,10 @@
 //! Module containing [Config] and other config-related items
 //!
+//! One [Config] struct is shared between all [crate::client::Client]s in the application.
+//! Therefore, [Config] is solely responsible for holding config-related data that these clients
+//! share and doesn't hold any state related to the config, such as, for example, what css files are
+//! in use.
+//!
 //! The main item of this config is the [Config] struct, but it also contains [generate] to
 //! generate the default config on disk.
 use itertools::Itertools;
@@ -24,8 +29,6 @@ pub struct Config {
     ///
     /// Paths all start with `/css/` followed by the name of the file.
     css_paths: Vec<PathBuf>,
-    /// The current position in [Config::css_paths]
-    current_css_index: usize,
 }
 
 impl Config {
@@ -37,7 +40,6 @@ impl Config {
             config_dir: paths.get_config_dir(),
             css_dir: paths.get_css_dir(),
             css_paths: vec![],
-            current_css_index: 0,
         };
 
         config.update_css_paths()?;
@@ -45,57 +47,9 @@ impl Config {
         Ok(config)
     }
 
-    /// Get the next css file in [Self::css_paths], only returning [None] if it is empty.
-    ///
-    /// ## Note:
-    ///
-    /// The [Self::next_css] and [Self::previous_css] function work by moving a pointer.
-    ///
-    /// ```rust
-    /// let config = Config {
-    ///     config_dir: PathBuf::new(),
-    ///     css_dir:  PathBuf::new();
-    ///     css_paths: vec![1, 2, 3];
-    ///     current_css_index: 0;
-    /// }
-    ///
-    /// assert_eq!(config.next_css(), Some(1));
-    /// assert_eq!(config.previous_css(), Some(3));
-    ///
-    /// ```
-    /// Keep this in mind, as it differs from an [std::iter::Iterator]
-    pub fn next_css(&mut self) -> Option<PathBuf> {
-        if self.css_paths.is_empty() {
-            return None;
-        }
-
-        self.current_css_index = (self.current_css_index + 1) % self.css_paths.len();
-
-        self.css_paths.get(self.current_css_index).cloned()
-    }
-
-    /// Get the previous css file in [Self::css_paths], only returning [None] if it is empty.
-    ///
-    /// ## Note:
-    ///
-    /// See [Self::next_css]
-    pub fn previous_css(&mut self) -> Option<PathBuf> {
-        if self.css_paths.is_empty() {
-            return None;
-        }
-
-        self.current_css_index = self
-            .current_css_index
-            .checked_sub(1)
-            .unwrap_or(self.css_paths.len() - 1);
-
-        self.css_paths.get(self.current_css_index).cloned()
-    }
-
-    /// Get the current css file from [Self::css_paths] without changing the index
-    #[allow(dead_code)]
-    pub fn current_css(&self) -> Option<PathBuf> {
-        self.css_paths.get(self.current_css_index).cloned()
+    /// Get [Self::css_paths]
+    pub fn get_css_paths(&self) -> &Vec<PathBuf> {
+        &self.css_paths
     }
 
     /// Get [Self::css_dir]

@@ -16,7 +16,7 @@ extern crate rocket;
 use clap::Parser;
 use rocket::{fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
-use std::{fs, path::PathBuf, process::exit};
+use std::{fs, path::PathBuf, process::exit, sync::Arc};
 
 mod cli;
 mod client;
@@ -122,6 +122,15 @@ fn rocket() -> Rocket<Build> {
         }
     };
 
+    let config = match config::Config::new(&paths) {
+        Ok(c) => Arc::new(c),
+        Err(e) => {
+            log::error!("Failed to create Config: {}", e);
+
+            exit(1)
+        }
+    };
+
     // The url of the md file, in the format:
     // localhost:port
     let address = format!("localhost:{}", cli.args.port);
@@ -146,6 +155,7 @@ fn rocket() -> Rocket<Build> {
             ..rocket::Config::default()
         })
         .manage(paths)
+        .manage(config)
         .mount("/css", FileServer::from(css_dir).rank(1))
         .mount("/", FileServer::from("."))
         .mount(
