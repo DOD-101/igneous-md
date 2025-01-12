@@ -36,3 +36,5 @@ simple_logger = "5.0.0"
 tokio = { version = "1.42.0", features = ["rt", "fs"] }
 toml = "0.8.19"
 uuid = { version = "1.11.0", features = ["v4"] }
+notify = "8.0.0"
+notify-debouncer-mini = "0.6.0"

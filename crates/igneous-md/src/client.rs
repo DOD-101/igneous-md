@@ -1,7 +1,13 @@
 //! Module containing the [Client] struct.
 //!
 //! For more information see [Client]
-use std::{io, path::PathBuf, sync::Arc, time::SystemTime};
+use std::{
+    io,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::SystemTime,
+};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 use crate::{config::Config, convert::md_to_html, paths::Paths};
@@ -18,7 +24,7 @@ use crate::{config::Config, convert::md_to_html, paths::Paths};
 /// application.
 ///
 /// See also: [crate::handlers::upgrade_connection]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Client {
     /// id of the client, currently not used
     #[allow(dead_code)]
@@ -29,10 +35,12 @@ pub struct Client {
     last_modified: SystemTime,
     /// The markdown from the file
     md: String,
-    /// The markdown from the file
+    /// The html from the file
     html: String,
     /// [Config] shared between all clients
-    pub config: Arc<Config>,
+    config: Arc<Mutex<Config>>,
+    /// Receiver of [notify::Event]s
+    pub config_update_receiver: broadcast::Receiver<notify::Event>,
     /// The current position in [Config::css_paths]
     current_css_index: usize,
 }
@@ -50,9 +58,8 @@ pub enum MdChanged {
 
 impl Client {
     /// Attempt to create a new [Client]
-    ///
-    /// This can fail due to it containing a [Config].
-    pub fn new(paths: &Paths, config: Arc<Config>) -> Self {
+    pub fn new(paths: &Paths, config: Arc<Mutex<Config>>) -> Self {
+        let config_update_receiver = config.lock().unwrap().update_sender.subscribe();
         Self {
             id: Uuid::new_v4(),
             md_path: paths.get_default_md(),
@@ -60,6 +67,7 @@ impl Client {
             last_modified: SystemTime::UNIX_EPOCH,
             html: String::new(),
             config,
+            config_update_receiver,
             current_css_index: 0,
         }
     }
@@ -121,14 +129,19 @@ impl Client {
     ///
     /// Keep this in mind, as it differs from an [std::iter::Iterator]
     pub fn next_css(&mut self) -> Option<PathBuf> {
-        if self.config.get_css_paths().is_empty() {
+        let config = self
+            .config
+            .lock()
+            .expect("Failed to lock config. This should never happen.");
+
+        if config.get_css_paths_clone().is_empty() {
             return None;
         }
 
-        self.current_css_index = (self.current_css_index + 1) % self.config.get_css_paths().len();
+        self.current_css_index = (self.current_css_index + 1) % config.get_css_paths_clone().len();
 
-        self.config
-            .get_css_paths()
+        config
+            .get_css_paths_clone()
             .get(self.current_css_index)
             .cloned()
     }
@@ -139,17 +152,22 @@ impl Client {
     ///
     /// See [Self::next_css]
     pub fn previous_css(&mut self) -> Option<PathBuf> {
-        if self.config.get_css_paths().is_empty() {
+        let config = self
+            .config
+            .lock()
+            .expect("Failed to lock config. This should never happen.");
+
+        if config.get_css_paths_clone().is_empty() {
             return None;
         }
 
         self.current_css_index = self
             .current_css_index
             .checked_sub(1)
-            .unwrap_or(self.config.get_css_paths().len() - 1);
+            .unwrap_or(config.get_css_paths_clone().len() - 1);
 
-        self.config
-            .get_css_paths()
+        config
+            .get_css_paths_clone()
             .get(self.current_css_index)
             .cloned()
     }
@@ -158,7 +176,9 @@ impl Client {
     #[allow(dead_code)]
     pub fn current_css(&self) -> Option<PathBuf> {
         self.config
-            .get_css_paths()
+            .lock()
+            .expect("Failed to lock config. This should never happen.")
+            .get_css_paths_clone()
             .get(self.current_css_index)
             .cloned()
     }
@@ -184,13 +204,15 @@ mod test {
     use super::*;
 
     impl Client {
-        pub fn new_testing(config: Arc<Config>) -> Self {
+        pub fn new_testing(config: Arc<Mutex<Config>>) -> Self {
+            let update_receiver = config.lock().unwrap().update_sender.subscribe();
             Self {
                 id: Uuid::new_v4(),
                 md_path: PathBuf::new(),
                 md: String::new(),
                 last_modified: SystemTime::UNIX_EPOCH,
                 html: String::new(),
+                config_update_receiver: update_receiver,
                 config,
                 current_css_index: 0,
             }
@@ -199,11 +221,11 @@ mod test {
 
     #[test]
     fn next_css() {
-        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
             PathBuf::from("style1.css"),
             PathBuf::from("style2.css"),
             PathBuf::from("style3.css"),
-        ])));
+        ]))));
 
         assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
         assert_eq!(client.next_css(), Some(PathBuf::from("style3.css")));
@@ -214,11 +236,11 @@ mod test {
 
     #[test]
     fn previous_css() {
-        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
             PathBuf::from("style1.css"),
             PathBuf::from("style2.css"),
             PathBuf::from("style3.css"),
-        ])));
+        ]))));
 
         assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
         assert_eq!(client.previous_css(), Some(PathBuf::from("style2.css")));
@@ -229,11 +251,11 @@ mod test {
 
     #[test]
     fn next_previous_mixed_1() {
-        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
             PathBuf::from("style1.css"),
             PathBuf::from("style2.css"),
             PathBuf::from("style3.css"),
-        ])));
+        ]))));
 
         assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
         assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
@@ -244,11 +266,11 @@ mod test {
 
     #[test]
     fn next_previous_mixed_2() {
-        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![
+        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
             PathBuf::from("style1.css"),
             PathBuf::from("style2.css"),
             PathBuf::from("style3.css"),
-        ])));
+        ]))));
 
         assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
         assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
@@ -259,9 +281,9 @@ mod test {
 
     #[test]
     fn next_previous_on_single() {
-        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![PathBuf::from(
-            "style1.css",
-        )])));
+        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
+            PathBuf::from("style1.css"),
+        ]))));
 
         assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
         assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
@@ -272,7 +294,7 @@ mod test {
 
     #[test]
     fn next_previous_on_empty() {
-        let mut client = Client::new_testing(Arc::new(Config::new_testing(vec![])));
+        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![]))));
 
         assert!(client.next_css().is_none());
         assert!(client.previous_css().is_none());

@@ -6,8 +6,11 @@
 //! There is exactly one Websocket for every client.
 //!
 //! None of these functions should ever panic
-use rocket::{response::content::*, State};
-use std::fs;
+use rocket::{fs::NamedFile, response::content::*, State};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     convert::{initial_html, md_to_html},
@@ -37,6 +40,20 @@ pub fn serve_main_js() -> RawJavaScript<&'static str> {
 #[get("/src/highlight.min.js")]
 pub fn serve_highlight_js() -> RawJavaScript<&'static str> {
     RawJavaScript(include_str!("../highlight.min.js"))
+}
+
+/// Serve a css file from disk, from [Paths.config_dir]
+///
+/// The optional `_noise` parameter is used to force a reload of the css, by invalidating the browser cache.
+#[get("/css/<file..>?<_noise>")]
+pub async fn serve_css(
+    file: PathBuf,
+    _noise: Option<String>,
+    paths: &State<Paths>,
+) -> Option<NamedFile> {
+    NamedFile::open(Path::new(&paths.get_css_dir()).join(&file))
+        .await
+        .ok()
 }
 
 /// Returns the initial html converted from the md file

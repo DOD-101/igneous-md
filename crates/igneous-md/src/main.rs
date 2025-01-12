@@ -16,7 +16,12 @@ extern crate rocket;
 use clap::Parser;
 use rocket::{fs::FileServer, Build, Rocket};
 use simple_logger::SimpleLogger;
-use std::{fs, path::PathBuf, process::exit, sync::Arc};
+use std::{
+    fs,
+    path::PathBuf,
+    process::exit,
+    sync::{Arc, Mutex},
+};
 
 mod cli;
 mod client;
@@ -123,7 +128,11 @@ fn rocket() -> Rocket<Build> {
     };
 
     let config = match config::Config::new(&paths) {
-        Ok(c) => Arc::new(c),
+        Ok(mut c) => {
+            c.start_watching()
+                .expect("Failed to start watching config dir");
+            Arc::new(Mutex::new(c))
+        }
         Err(e) => {
             log::error!("Failed to create Config: {}", e);
 
@@ -146,8 +155,6 @@ fn rocket() -> Rocket<Build> {
         thread::spawn(move || client.start());
     }
 
-    let css_dir = paths.get_css_dir();
-
     rocket::build()
         .configure(rocket::Config {
             port: cli.args.port,
@@ -156,13 +163,13 @@ fn rocket() -> Rocket<Build> {
         })
         .manage(paths)
         .manage(config)
-        .mount("/css", FileServer::from(css_dir).rank(1))
         .mount("/", FileServer::from("."))
         .mount(
             "/",
             routes![
                 serve_main_js,
                 serve_highlight_js,
+                serve_css,
                 get_initial_md,
                 upgrade_connection,
             ],

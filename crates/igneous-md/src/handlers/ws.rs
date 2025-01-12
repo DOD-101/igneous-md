@@ -15,7 +15,11 @@ use rocket::{
     State,
 };
 use rocket_ws::{stream::DuplexStream, Channel, Message, WebSocket};
-use std::{io, path::PathBuf, sync::Arc};
+use std::{
+    io,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use crate::{client::Client, config::Config, export::export, paths::Paths};
 
@@ -74,6 +78,8 @@ impl ServerMsg {
 #[derive(Serialize, Debug)]
 enum ServerMsgType {
     /// A message telling the client to treat the body as a new css file path
+    CssChange,
+    /// A message telling the client to reload the css, since a change has occured
     CssUpdate,
     /// A message telling the client to treat the body as the new content of the `<body>` element
     HtmlUpdate,
@@ -93,7 +99,7 @@ enum ServerMsgType {
 pub async fn upgrade_connection(
     ws: WebSocket,
     paths: &State<Paths>,
-    config: &State<Arc<Config>>,
+    config: &State<Arc<Mutex<Config>>>,
 ) -> io::Result<Channel<'static>> {
     let paths = paths.inner().clone();
 
@@ -117,6 +123,16 @@ pub async fn upgrade_connection(
                             ).await;
                         }
                     }
+
+                    _ = client.config_update_receiver.recv() => {
+                        log::info!("Sending update");
+                        let _ = stream.send_server_msg(
+                            &ServerMsg {
+                                r#type: ServerMsgType::CssUpdate,
+                                body: String::new(),
+                            }
+                        ).await;
+                    },
 
                     // Handle incoming messages from the client
                     incoming = stream.next() => {
@@ -168,7 +184,7 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
 
             if let Some(path) = path {
                 ServerMsg {
-                    r#type: ServerMsgType::CssUpdate,
+                    r#type: ServerMsgType::CssChange,
                     body: path.to_string_lossy().to_string(),
                 }
             } else {
@@ -180,7 +196,7 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
 
             if let Some(path) = path {
                 ServerMsg {
-                    r#type: ServerMsgType::CssUpdate,
+                    r#type: ServerMsgType::CssChange,
                     body: path.to_string_lossy().to_string(),
                 }
             } else {
