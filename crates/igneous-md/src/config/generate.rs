@@ -55,7 +55,7 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
         async {
             tokio::fs::write(
                 css_dir.join("hljs").join("github-dark.css"),
-                format!("{}\n{}", NOTICE_HLJS, dark_hljs_res),
+                format!("/*{}*/\n{}", NOTICE_HLJS, dark_hljs_res),
             )
             .await
         },
@@ -72,7 +72,7 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
         async {
             tokio::fs::write(
                 css_dir.join("hljs").join("github-light.css"),
-                format!("{}\n{}", NOTICE_HLJS, light_hljs_res),
+                format!("/*{}*/\n{}", NOTICE_HLJS, light_hljs_res),
             )
             .await
         }
