@@ -39,17 +39,6 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
-function update_css(css_path) {
-	console.log("New Css path:", css_path);
-	const oldStyleSheet = document.getElementById("md-stylesheet");
-	const newStyleSheet = document.createElement("link");
-	newStyleSheet.rel = "stylesheet";
-	newStyleSheet.href = css_path;
-	newStyleSheet.id = "md-stylesheet";
-	document.head.appendChild(newStyleSheet);
-	oldStyleSheet.parentNode.removeChild(oldStyleSheet);
-}
-
 function handle_redirect(href) {
 	socket.send(
 		JSON.stringify({
@@ -82,11 +71,24 @@ function safeParse(jsonString) {
 
 socket.onmessage = (event) => {
 	const data = safeParse(event.data);
-	if (!data) return; // Exit if parsing failed
+	if (!data) return;
+
+	// TODO: It would be nice to use the cached css file if it hasn't changed
 
 	switch (data.type) {
+		case "CssChange":
+			{
+				const styleSheet = document.getElementById("md-stylesheet");
+
+				styleSheet.href = `${data.body}?_noise=${Math.random()}`;
+			}
+			break;
 		case "CssUpdate":
-			update_css(data.body);
+			{
+				const styleSheet = document.getElementById("md-stylesheet");
+
+				styleSheet.href = `${styleSheet.href.split("?")[0]}?_noise=${Math.random()}`;
+			}
 			break;
 		case "HtmlUpdate":
 			document.getElementById("body").innerHTML = data.body;

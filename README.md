@@ -18,6 +18,8 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 ## To-do
 
+- [x] Introduce proper hot-reloading for the config
+
 - [ ] Fix bugs
 
 - [ ] Create packages
@@ -27,8 +29,6 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 - [ ] Add optional support for [markdown highlight notes](https://github.com/orgs/community/discussions/16925)
 
 - [ ] Make the viewer be able to re-attach to the server
-
-- [ ] Introduce proper hot-reloading for the config
 
 - [ ] Optimize performance
 
