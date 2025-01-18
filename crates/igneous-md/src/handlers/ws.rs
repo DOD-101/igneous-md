@@ -12,7 +12,7 @@ use rocket::{
         select,
         time::{self, Duration},
     },
-    State,
+    Shutdown, State,
 };
 use rocket_ws::{stream::DuplexStream, Channel, Message, WebSocket};
 use std::{
@@ -72,6 +72,14 @@ impl ServerMsg {
             body: msg,
         }
     }
+
+    /// A convenience function to create a [ServerMsg] with type [ServerMsgType::Exit]
+    fn exit() -> Self {
+        Self {
+            r#type: ServerMsgType::Exit,
+            body: "Server is shutting down".to_string(),
+        }
+    }
 }
 
 /// Different types of messages the server can send
@@ -87,6 +95,8 @@ enum ServerMsgType {
     Success,
     /// An arbitrary error message
     Error,
+    /// Message sent to the client when the server is shutting down
+    Exit,
 }
 
 /// Handles clients upgrading to Websocket
@@ -100,6 +110,7 @@ pub async fn upgrade_connection(
     ws: WebSocket,
     paths: &State<Paths>,
     config: &State<Arc<Mutex<Config>>>,
+    mut shutdown: Shutdown,
 ) -> io::Result<Channel<'static>> {
     let paths = paths.inner().clone();
 
@@ -168,6 +179,10 @@ pub async fn upgrade_connection(
                             }
                             None => break,
                         }
+                    }
+                    _  = &mut shutdown => {
+                        let _ = stream.send_server_msg(&ServerMsg::exit()).await;
+                        break;
                     }
                 }
             }
@@ -242,7 +257,9 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
 }
 
 trait SendServerMsg {
-    // add code here
+    /// Convenience function to send a [ServerMsg] to the client
+    ///
+    /// Simply a wrapper around [rocket_ws::stream::DuplexStream::send()]
     fn send_server_msg(
         &mut self,
         msg: &ServerMsg,
@@ -250,8 +267,6 @@ trait SendServerMsg {
 }
 
 impl SendServerMsg for DuplexStream {
-    // add code here
-    //
     fn send_server_msg(
         &mut self,
         msg: &ServerMsg,
