@@ -20,15 +20,15 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [x] Introduce proper hot-reloading for the config
 
+- [x] Make the viewer be able to re-attach to the server
+
+- [x] Add support for [markdown highlight notes](https://github.com/orgs/community/discussions/16925)
+
 - [ ] Fix bugs
 
 - [ ] Create packages
 
 - [ ] Write tests
-
-- [ ] Add optional support for [markdown highlight notes](https://github.com/orgs/community/discussions/16925)
-
-- [ ] Make the viewer be able to re-attach to the server
 
 - [ ] Optimize performance
 
@@ -48,18 +48,20 @@ Since igneous-md works by using a server in the background and then communicates
 using https and websockets anyone could use this to write their own viewer. 
 
 The benefits of this being you would receive all of the hot-reloading and conversion from md to html for free, 
-while having full freedom to implement their viewer however they would like. 
+while having full freedom to implement your viewer however they would like. 
 
 The only real limitation on this is what the websocket json-protocol is written to support. (PRs welcome)
 
-This aspect of igneous-md is still WIP, but if you already want to get started check out [`./crates/igneous-md/src/handlers/ws.rs`](./crates/igneous-md/src/handlers/ws.rs)
-and have a look at is possible right now.
+This aspect of igneous-md is still experimental, but if you already want to get started check out [`./crates/igneous-md/src/handlers/ws.rs`](./crates/igneous-md/src/handlers/ws.rs)
+and have a look at what is possible right now.
 
 If you want to only use igneous-md for this be sure to disable the `viewer` cargo feature.
 
 ## Attribution
 
 Many thanks to all the people, who have created/contributed to technology used in the creation this project.
+
+GitHub for their markdown styling and markdown-alert [icons](./assets).
 
 ## License
 

@@ -1,6 +1,6 @@
 # Docs
 
-> While Igneous-md is still in early development, it's already mostly functional.
+> While Igneous-md is still in development, it's already very functional.
 
 ## Installing
 
@@ -45,7 +45,7 @@ vim.keymap.set("n", "gm", function()
 		vim.fn.jobstop(job_id)
 	end
 	local current_buffer_path = vim.fn.expand("%")
-	job_id = vim.fn.jobstart({ "igneous-md", "--path", current_buffer_path })
+	job_id = vim.fn.jobstart({ "igneous-md", current_buffer_path })
 end, {})
 ```
 
