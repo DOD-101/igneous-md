@@ -5,10 +5,19 @@
 ### Added
 
 - Added a binary to igneous-md-viewer to be able to launch to separate from the server
+- Add hot-reloading for the config
+- Add support for [markdown highlight notes](https://github.com/orgs/community/discussions/16925)
+
+### Fixed
+
+- Comment out notice in hljs css files
+- Fix link to github hljs css file
+- Greatly improve shutdown time 
 
 ### Changed
 
 - Make client connections persistent between files. This improves performance and helps simplify the code
+- Clients persist their websocket connection to the server between files
 
 ## 0.2.1 - 2025-01-03
 
