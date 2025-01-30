@@ -53,6 +53,8 @@
             (lib.fileset.maybeMissing ./crates)
             (lib.fileset.fileFilter (file: file.hasExt == "js") root)
             (lib.fileset.maybeMissing ./crates/igneous-md/src)
+            (lib.fileset.maybeMissing ./assets)
+            (lib.fileset.fileFilter (file: file.hasExt == "svg") root)
             (craneLib.fileset.commonCargoSources root)
           ];
         };
@@ -99,6 +101,7 @@
               ./Cargo.toml
               ./Cargo.lock
               (craneLib.fileset.commonCargoSources ./crates/igneous-md-viewer)
+              (lib.fileset.maybeMissing ./assets)
               crate
             ];
           };
