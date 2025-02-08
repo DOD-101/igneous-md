@@ -64,15 +64,22 @@ fn post_process_html(html: String) -> String {
     //
     // These are not part of the gfm spec, hence not added by the converter.
     let checkboxes = document
-        .select("li>p>input[type=\"checkbox\"]")
+        .select("li input[type=\"checkbox\"]")
         .expect("Selector is hard-coded.");
 
     for checkbox in checkboxes {
         let checkbox = checkbox.as_node();
         let li = checkbox
-            .parent()
-            .and_then(|parent| parent.parent())
+            .ancestors()
+            .find(|n| {
+                n.as_element()
+                    .expect("We know this is an element.")
+                    .name
+                    .local
+                    .eq("li")
+            })
             .expect("The selector determines that these exist");
+
         let ul = li
             .parent()
             .expect("The selector determines that these exist");
