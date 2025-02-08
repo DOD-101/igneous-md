@@ -7,6 +7,7 @@
 - Added a binary to igneous-md-viewer to be able to launch to separate from the server
 - Add hot-reloading for the config
 - Add support for [markdown highlight notes](https://github.com/orgs/community/discussions/16925)
+- Vim bindings to the viewer
 
 ### Fixed
 
