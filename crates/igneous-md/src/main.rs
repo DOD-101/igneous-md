@@ -174,4 +174,5 @@ fn rocket() -> Rocket<Build> {
                 upgrade_connection,
             ],
         )
+        .register("/", catchers![not_found, internal_error])
 }
