@@ -1,3 +1,5 @@
+let lastKey = "";
+
 document.addEventListener("keydown", (event) => {
 	switch (event.key) {
 		case "c":
@@ -34,9 +36,30 @@ document.addEventListener("keydown", (event) => {
 			window.scrollTo(0, 0);
 			break;
 
+		case "j":
+			window.scrollBy({ top: 150, behavior: "smooth" });
+			break;
+
+		case "k":
+			window.scrollBy({ top: -150, behavior: "smooth" });
+			break;
+
+		case "g":
+			if (lastKey === "g") {
+				window.scrollTo({ top: 0, behavior: "smooth" });
+				lastKey = "";
+			}
+			break;
+
+		case "G":
+			window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+			break;
+
 		default:
 			break;
 	}
+
+	lastKey = event.key;
 });
 
 function handle_redirect(href) {
