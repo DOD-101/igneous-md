@@ -13,6 +13,7 @@
 - Comment out notice in hljs css files
 - Fix link to github hljs css file
 - Greatly improve shutdown time 
+- Some task-list items (checklists) not having the correct classes
 
 ### Changed
 
