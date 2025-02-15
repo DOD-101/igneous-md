@@ -31,7 +31,7 @@ pub struct Config {
     ///
     /// Paths all start with `/css/` followed by the name of the file.
     css_paths: Arc<Mutex<Vec<PathBuf>>>,
-    /// Sender for [ConfigChanged] events
+    /// Sender for [notify::Event]s
     pub update_sender: tokio::sync::broadcast::Sender<notify::Event>,
     /// The watcher, if it is running
     watcher: Option<notify::RecommendedWatcher>,

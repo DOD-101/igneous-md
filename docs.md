@@ -45,7 +45,7 @@ vim.keymap.set("n", "gm", function()
 		vim.fn.jobstop(job_id)
 	end
 	local current_buffer_path = vim.fn.expand("%")
-	job_id = vim.fn.jobstart({ "igneous-md", current_buffer_path })
+	job_id = vim.fn.jobstart({ "igneous-md", "view", current_buffer_path })
 end, {})
 ```
 

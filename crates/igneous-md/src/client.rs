@@ -23,7 +23,7 @@ use crate::{config::Config, convert::md_to_html, paths::Paths};
 /// The Client also contains an [`Arc<Config>`] so that it can access the shared config state of the
 /// application.
 ///
-/// See also: [crate::handlers::upgrade_connection]
+/// See also: [crate::handlers::upgrade_connection()]
 #[derive(Debug)]
 pub struct Client {
     /// id of the client, currently not used
