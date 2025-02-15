@@ -3,9 +3,6 @@ use clap::{Parser, Subcommand};
 use rocket::log::LogLevel as RocketLogLevel;
 use std::{path::PathBuf, result::Result, str::FromStr};
 
-#[cfg(feature = "generate_config")]
-use std::fmt::Display;
-
 /// Top Level Struct of the CLI
 /// For more information see [clap documentation](https://docs.rs/clap/latest/clap/index.html)
 #[derive(Parser, Debug)]
@@ -68,28 +65,6 @@ pub enum Action {
         overwrite: bool,
     },
 }
-
-/// Custom errors that may occur when running different actions
-#[cfg(feature = "generate_config")]
-#[derive(Debug)]
-pub enum ActionError {
-    ConfigDirExists,
-}
-
-#[cfg(feature = "generate_config")]
-impl Display for ActionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ConfigDirExists => write!(
-                f,
-                "The config dir already exists. Run with -o to overwrite."
-            ),
-        }
-    }
-}
-
-#[cfg(feature = "generate_config")]
-impl std::error::Error for ActionError {}
 
 /// Wrapper around [log::LevelFilter] to allow conversion to [RocketLogLevel]
 #[derive(Clone, Debug, Copy)]
