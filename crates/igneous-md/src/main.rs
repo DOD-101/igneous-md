@@ -26,11 +26,13 @@ mod cli;
 mod client;
 mod config;
 mod convert;
+mod errors;
 mod export;
 mod handlers;
 mod paths;
 
 use cli::{Action, Cli};
+use errors::Error;
 use handlers::*;
 use paths::default_css_dir;
 use paths::Paths;
@@ -39,10 +41,7 @@ use paths::Paths;
 use {igneous_md_viewer::Viewer, std::thread};
 
 #[cfg(feature = "generate_config")]
-use {
-    cli::ActionError,
-    std::{io, io::Write},
-};
+use std::{io, io::Write};
 
 #[rocket::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -64,24 +63,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &fs::read_to_string(path).expect("Failed to read md file to string."),
             );
 
-            if let Err(e) = export::export(
+            Ok(export::export(
                 convert::initial_html(&css.clone().unwrap_or_default().to_string_lossy(), &html),
                 export_path.clone().map(PathBuf::from),
-            ) {
-                log::error!("Failed to export md.");
-
-                return Err(Box::new(e) as Box<dyn std::error::Error>);
-            }
-
-            Ok(())
+            )
+            .map_err(Error::ExportFailed)?)
         }
         #[cfg(feature = "generate_config")]
         Action::GenerateConfig { overwrite } => {
             if default_css_dir().exists() && !overwrite {
-                return Err(Box::new(ActionError::ConfigDirExists));
+                return Err(Box::new(Error::ConfigDirExists) as Box<dyn std::error::Error>);
             }
 
-            fs::create_dir_all(default_css_dir().join("hljs")).unwrap();
+            fs::create_dir_all(default_css_dir().join("hljs"))
+                .map_err(|e| Error::ConfigGenFailed(Box::new(e) as Box<dyn std::error::Error>))?;
 
             config::generate::generate_config_files(default_css_dir()).await?;
 
@@ -103,15 +98,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Check if the config exists
             if !default_css_dir().exists() {
                 // Always at least create the dir
-                if let Err(e) = fs::create_dir_all(default_css_dir().join("hljs")) {
-                    log::error!(
-                        "Failed to create css_dir: {} With error: {}",
-                        default_css_dir().to_string_lossy(),
-                        e
-                    );
-
-                    return Err(Box::new(e));
-                }
+                fs::create_dir_all(default_css_dir().join("hljs"))
+                    .map_err(|e| Error::ConfigGenFailed(Box::new(e)))?;
 
                 // If compiled with generate_config generate the config
                 #[cfg(feature = "generate_config")]
@@ -132,13 +120,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .next()
                         .is_some_and(|c| c == 'y')
                     {
-                        if let Err(e) =
-                            config::generate::generate_config_files(default_css_dir()).await
-                        {
-                            log::error!("Failed to create default config: {}", e);
-
-                            return Err(e);
-                        }
+                        config::generate::generate_config_files(default_css_dir())
+                            .await
+                            .map_err(Error::ConfigGenFailed)?;
                     }
                 }
             }
@@ -150,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ) {
                 Ok(p) => p,
                 Err(e) => {
-                    log::error!("Failed to create Paths: {}", e);
+                    log::error!("Failed to create `Paths` Struct: {}", e);
 
                     return Err(Box::new(e));
                 }
@@ -163,7 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Arc::new(Mutex::new(c))
                 }
                 Err(e) => {
-                    log::error!("Failed to create Config: {}", e);
+                    log::error!("Failed to create `Config` Struct: {}", e);
 
                     return Err(Box::new(e));
                 }
