@@ -8,7 +8,6 @@ use std::{
     time::SystemTime,
 };
 use tokio::sync::broadcast;
-use uuid::Uuid;
 
 use crate::{config::Config, convert::md_to_html, paths::Paths};
 
@@ -26,9 +25,6 @@ use crate::{config::Config, convert::md_to_html, paths::Paths};
 /// See also: [crate::handlers::upgrade_connection()]
 #[derive(Debug)]
 pub struct Client {
-    /// id of the client, currently not used
-    #[allow(dead_code)]
-    id: uuid::Uuid,
     /// Path to the`.md` on disk
     md_path: PathBuf,
     /// Last time the file was modified
@@ -61,7 +57,6 @@ impl Client {
     pub fn new(paths: &Paths, config: Arc<Mutex<Config>>) -> Self {
         let config_update_receiver = config.lock().unwrap().update_sender.subscribe();
         Self {
-            id: Uuid::new_v4(),
             md_path: paths.get_default_md(),
             md: String::new(),
             last_modified: SystemTime::UNIX_EPOCH,
@@ -207,7 +202,6 @@ mod test {
         pub fn new_testing(config: Arc<Mutex<Config>>) -> Self {
             let update_receiver = config.lock().unwrap().update_sender.subscribe();
             Self {
-                id: Uuid::new_v4(),
                 md_path: PathBuf::new(),
                 md: String::new(),
                 last_modified: SystemTime::UNIX_EPOCH,
