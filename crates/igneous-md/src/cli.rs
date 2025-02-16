@@ -49,10 +49,10 @@ pub enum Action {
     Convert {
         /// The file to convert
         path: PathBuf,
-        /// Path to stylesheet within css dir
+        /// Path to set the css stylesheet to
         #[arg(short, long, value_name = "PATH")]
         css: Option<PathBuf>,
-        /// The path of the output html
+        /// Path to save the html to
         #[arg(short, long, value_name = "PATH")]
         export_path: Option<PathBuf>,
     },
