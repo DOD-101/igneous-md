@@ -12,8 +12,7 @@ authors = ["David Thievon"]
 
 [workspace.dependencies]
 
-igneous-md-viewer = { version = "0.1.0", path = "crates/igneous-md-viewer" }
-igneous-md = { version = "0.2.1", path = "crates/igneous-md" }
+igneous-md-viewer = { version = "0.2.0", path = "crates/igneous-md-viewer" }
 clap = { version = "4.5.16", features = ["derive"] }
 clap_complete = "4.5.44"
 
