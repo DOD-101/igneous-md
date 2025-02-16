@@ -13,7 +13,7 @@
 #[macro_use]
 extern crate rocket;
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use rocket::fs::FileServer;
 use simple_logger::SimpleLogger;
 use std::{
@@ -77,6 +77,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map_err(|e| Error::ConfigGenFailed(Box::new(e) as Box<dyn std::error::Error>))?;
 
             config::generate::generate_config_files(default_css_dir()).await?;
+
+            Ok(())
+        }
+        Action::Completions { shell } => {
+            clap_complete::generate(
+                shell,
+                &mut Cli::command(),
+                Cli::command().get_name(),
+                &mut std::io::stdout(),
+            );
 
             Ok(())
         }

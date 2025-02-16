@@ -12,3 +12,4 @@ authors.workspace = true
 webkit2gtk = "2.0.1"
 gtk = "0.18.1"
 clap.workspace = true
+clap_complete.workspace = true

@@ -56,7 +56,11 @@ pub enum Action {
         #[arg(short, long, value_name = "PATH")]
         export_path: Option<PathBuf>,
     },
-
+    /// Generate shell completions
+    Completions {
+        /// The shell to generate completions for
+        shell: clap_complete::Shell,
+    },
     /// Generate the default config. Requires an internet connection
     #[cfg(feature = "generate_config")]
     GenerateConfig {

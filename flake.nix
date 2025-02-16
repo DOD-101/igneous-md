@@ -53,8 +53,6 @@
             (lib.fileset.maybeMissing ./crates)
             (lib.fileset.fileFilter (file: file.hasExt == "js") root)
             (lib.fileset.maybeMissing ./crates/igneous-md/src)
-            (lib.fileset.maybeMissing ./assets)
-            (lib.fileset.fileFilter (file: file.hasExt == "svg") root)
             (craneLib.fileset.commonCargoSources root)
           ];
         };
@@ -209,6 +207,8 @@
           # Inherit inputs from checks.
           checks = self.checks.${system};
           packages = [
+            igneous-md-release
+            igneous-md-viewer
           ];
         };
 
