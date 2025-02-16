@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 0.3.0 - 2025-02-16
+
 ### Added
 
 - Added a binary to igneous-md-viewer to be able to launch to separate from the server
