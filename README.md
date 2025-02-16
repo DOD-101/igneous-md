@@ -35,7 +35,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 ## Usage
 
 ```
-igneous-md path/to/file.md
+igneous-md view path/to/file.md
 ```
 
 For more information see [docs.md](./docs.md)

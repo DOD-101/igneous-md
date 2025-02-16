@@ -6,11 +6,15 @@
 
 The simplest way to install is to run `cargo install igneous-md`
 
+Or if you're using nix you can take advantage of the flake. Be sure to use `igneous-md-release`.
+
 ## Getting started
 
-1. Make sure you have `webkit2gtk` installed on your system. You also need to install the `segoe-ui`-font and `apple-emoji`s for the GitHub style.
+1. Make sure you have `webkit2gtk` (specifically ABI version `4.1`) installed on your system. <br>
+It's also recommended to install the `noto-fonts-color-emoji` font (or whatever it is called in your package manager of choice). <br>
+*(not needed with the flake)*
 
-2. Find a markdown file you want to view and run `igneous-md path/to/file.md`
+2. Find a markdown file you want to view and run `igneous-md view path/to/file.md`
 
 ## Configuration
 
@@ -30,11 +34,12 @@ Note: Config generation is only available if compiled with `--features generate_
 
 ## Keybindings
 
-| Key | Description                  |
-| --- | ---------------------------- |
-| `c` | Go to next color scheme      |
-| `C` | Go to previous color scheme  |
-| `e` | Export html                  |
+| Key    | Description                  |
+| ------ | ---------------------------- |
+| `c`    | Go to next color scheme      |
+| `C`    | Go to previous color scheme  |
+| `e`    | Export html                  |
+| `hjkl` | Vim bindings                 |
 
 ## Integration with Neovim
 
