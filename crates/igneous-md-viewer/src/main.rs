@@ -4,12 +4,23 @@
 //!
 //! It's useful for when you accidentally closed the viewer, but don't want to restart the whole
 //! server.
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use gtk::glib::BoolError;
 use igneous_md_viewer::Viewer;
 
 fn main() -> Result<(), BoolError> {
     let cli = Cli::parse();
+
+    if let Some(shell) = cli.completions {
+        clap_complete::generate(
+            shell,
+            &mut Cli::command(),
+            Cli::command().get_name(),
+            &mut std::io::stdout(),
+        );
+
+        return Ok(());
+    }
 
     let viewer = Viewer::new(format!(
         "localhost:{}/{}",
@@ -33,4 +44,7 @@ pub struct Cli {
     /// Path to the initial css to use
     #[arg(short, long)]
     pub css: Option<String>,
+    /// Generate shell completions
+    #[arg(long)]
+    pub completions: Option<clap_complete::Shell>,
 }

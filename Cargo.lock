@@ -333,6 +333,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.5.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "375f9d8255adeeedd51053574fd8d4ba875ea5fa558e86617b07f09f1680c8b6"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.5.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1459,6 +1468,7 @@ version = "0.2.1"
 dependencies = [
  "chrono",
  "clap",
+ "clap_complete",
  "home",
  "igneous-md-viewer",
  "itertools",
@@ -1483,6 +1493,7 @@ name = "igneous-md-viewer"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "clap_complete",
  "gtk",
  "webkit2gtk",
 ]
