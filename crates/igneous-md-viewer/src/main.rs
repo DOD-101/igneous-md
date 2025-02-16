@@ -8,17 +8,13 @@ use clap::Parser;
 use gtk::glib::BoolError;
 use igneous_md_viewer::Viewer;
 
-// TODO: It might be nice to be able to pass a default css you want to use. This could be done via
-// URL arguments. But this is primarily a change that would need to happen in the server
-
 fn main() -> Result<(), BoolError> {
     let cli = Cli::parse();
 
     let viewer = Viewer::new(format!(
-        "localhost:{}/?path={}{}",
+        "localhost:{}/{}",
         cli.port,
-        cli.path,
-        cli.css.map(|s| format!("&css={}", s)).unwrap_or_default()
+        cli.css.map(|s| format!("?css={}", s)).unwrap_or_default()
     ));
 
     viewer.start()?;
@@ -27,11 +23,14 @@ fn main() -> Result<(), BoolError> {
 }
 
 #[derive(Debug, Parser)]
+/// Igneous-md viewer
+///
+/// Used to connect to an already running igneous-md server.
 pub struct Cli {
-    #[arg(default_value = "README.md")]
-    pub path: String,
-    #[arg(long, default_value = "2323")]
+    /// Port the server is running on
+    #[arg(short, long, default_value = "2323")]
     pub port: u16,
+    /// Path to the initial css to use
     #[arg(short, long)]
     pub css: Option<String>,
 }

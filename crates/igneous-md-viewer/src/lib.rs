@@ -13,7 +13,7 @@ impl Viewer {
         Viewer { addr }
     }
 
-    /// Start the viewer, exiting the program if it fail's.
+    /// Start the viewer, exiting the program if it fails.
     pub fn start(&self) -> Result<(), glib::BoolError> {
         gtk::init()?;
 
