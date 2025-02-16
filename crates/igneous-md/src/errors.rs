@@ -14,12 +14,15 @@ pub enum Error {
     ConfigDirExists,
     /// Error when exporting the md file to html fails
     ExportFailed(std::io::Error),
+    /// Error when invalid input files are passed
+    InvalidInput(std::io::Error),
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ExportFailed(e) => write!(f, "Failed to export md. Underlying error: {}", e),
+            Self::ExportFailed(e) => write!(f, "Failed to export md. Underlying io error: {}", e),
+            Self::InvalidInput(e) => write!(f, "Invalid input file. Underlying io error: {}", e),
             #[cfg(feature = "generate_config")]
             Self::ConfigDirExists => write!(
                 f,

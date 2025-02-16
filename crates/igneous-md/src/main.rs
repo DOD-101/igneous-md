@@ -3,7 +3,7 @@
 //! # Usage
 //!
 //! ```
-//! igneous-md path/to/file.md
+//! igneous-md view path/to/file.md
 //!
 //! igneous-md convert path/to/file.md
 //! ```
@@ -59,9 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             export_path,
             css,
         } => {
-            let html = convert::md_to_html(
-                &fs::read_to_string(path).expect("Failed to read md file to string."),
-            );
+            let html = convert::md_to_html(&fs::read_to_string(path).map_err(Error::InvalidInput)?);
 
             Ok(export::export(
                 convert::initial_html(&css.clone().unwrap_or_default().to_string_lossy(), &html),
@@ -101,7 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fs::create_dir_all(default_css_dir().join("hljs"))
                     .map_err(|e| Error::ConfigGenFailed(Box::new(e)))?;
 
-                // If compiled with generate_config generate the config
+                // If compiled with generate_config, generate the config
                 #[cfg(feature = "generate_config")]
                 {
                     print!("No config found. Would you like to generate the default config? [(y)es/(N)o]: ");
