@@ -16,11 +16,11 @@ static ALERT_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
 static SVGS: std::sync::LazyLock<HashMap<&'static str, &'static str>> =
     std::sync::LazyLock::new(|| {
         HashMap::from([
-            ("Note", include_str!("../../../assets/info-16.svg")),
-            ("Tip", include_str!("../../../assets/light-bulb-16.svg")),
-            ("Important", include_str!("../../../assets/report-16.svg")),
-            ("Warning", include_str!("../../../assets/alert-16.svg")),
-            ("Caution", include_str!("../../../assets/stop-16.svg")),
+            ("Note", include_str!("../assets/info-16.svg")),
+            ("Tip", include_str!("../assets/light-bulb-16.svg")),
+            ("Important", include_str!("../assets/report-16.svg")),
+            ("Warning", include_str!("../assets/alert-16.svg")),
+            ("Caution", include_str!("../assets/stop-16.svg")),
         ])
     });
 
