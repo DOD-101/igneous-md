@@ -207,8 +207,6 @@
           # Inherit inputs from checks.
           checks = self.checks.${system};
           packages = [
-            igneous-md-release
-            igneous-md-viewer
           ];
         };
 
