@@ -9,7 +9,7 @@ use regex::Regex;
 use std::collections::{HashMap, VecDeque};
 
 static ALERT_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"^\s*\[!(?i)(note|tip|important|warning|caution)\](\s*$|\s*\n.*$)"#)
+    Regex::new(r#"^\s*\[!(?i)(note|tip|important|warning|caution)\](\s*$|\s*\n)"#)
         .expect("Regex is hard-coded.")
 });
 
@@ -322,8 +322,18 @@ mod test {
 > shouldn't work
             "#,
             r#"
+> [!Important] This
+> is sooo much longer
+> but still shouldn't work
+            "#,
+            r#"
 > [!Note] 
 > `should work`
+            "#,
+            r#"
+> [!NOTE]
+> This multi line alter, which is rather long
+> should work
             "#,
         ];
 
@@ -337,6 +347,8 @@ mod test {
 
         assert!(elements.next().unwrap().is_ok_and(is_alert));
         assert!(elements.next().unwrap().is_err());
+        assert!(elements.next().unwrap().is_err());
+        assert!(elements.next().unwrap().is_ok_and(is_alert));
         assert!(elements.next().unwrap().is_ok_and(is_alert));
 
         // make sure the iterator is empty
