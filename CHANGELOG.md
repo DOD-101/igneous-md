@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added 
+
+- Ability to adjust update rate
+
 ## 0.3.0 - 2025-02-16
 
 ### Added

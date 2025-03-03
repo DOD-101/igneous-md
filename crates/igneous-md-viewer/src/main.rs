@@ -23,9 +23,10 @@ fn main() -> Result<(), BoolError> {
     }
 
     let viewer = Viewer::new(format!(
-        "localhost:{}/{}",
+        "localhost:{}/?update_rate={}{}",
         cli.port,
-        cli.css.map(|s| format!("?css={}", s)).unwrap_or_default()
+        cli.update_rate,
+        cli.css.map(|s| format!("&css={}", s)).unwrap_or_default(),
     ));
 
     viewer.start()?;
@@ -47,4 +48,7 @@ pub struct Cli {
     /// Generate shell completions
     #[arg(long)]
     pub completions: Option<clap_complete::Shell>,
+    /// How often to check for updates (in ms)
+    #[arg(short, long, default_value = "1000")]
+    pub update_rate: u64,
 }

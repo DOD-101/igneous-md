@@ -80,7 +80,7 @@ const url = new URL(window.location.href);
 const params = new URLSearchParams(url.search);
 
 const socket = new WebSocket(
-	`ws://${window.location.host}/ws/?path=${params.get("path")}`,
+	`ws://${window.location.host}/ws/?path=${params.get("path")}&update_rate=${params.get("update_rate")}`,
 );
 
 function safeParse(jsonString) {

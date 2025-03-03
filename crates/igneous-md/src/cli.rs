@@ -44,6 +44,9 @@ pub enum Action {
         /// Open browser tab
         #[arg(short, long, default_value = "false")]
         browser: bool,
+        /// How often to check for updates (in ms)
+        #[arg(short, long, default_value = "1000")]
+        update_rate: u64,
     },
     /// Convert a md file to html and save it to disk
     Convert {

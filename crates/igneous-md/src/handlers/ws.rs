@@ -105,11 +105,12 @@ enum ServerMsgType {
 /// It will also now be able to request things from / communicate with the server via the Websocket.
 ///
 /// Changing the viewed file is possible via [ClientMsgType::Redirect]
-#[get("/ws")]
+#[get("/ws?<update_rate>")]
 pub async fn upgrade_connection(
     ws: WebSocket,
     paths: &State<Paths>,
     config: &State<Arc<Mutex<Config>>>,
+    update_rate: Option<u64>,
     mut shutdown: Shutdown,
 ) -> io::Result<Channel<'static>> {
     let paths = paths.inner().clone();
@@ -119,7 +120,7 @@ pub async fn upgrade_connection(
     Ok(ws.channel(move |mut stream| {
         Box::pin(async move {
             // How often the`.md` file should be check for updates
-            let mut interval = time::interval(Duration::from_secs(1));
+            let mut interval = time::interval(Duration::from_millis(update_rate.unwrap_or(1000)));
             loop {
                 select! {
                     // Check for updates in the`.md` file, sending any new HTML to the client
