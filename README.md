@@ -18,19 +18,19 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 ## To-do
 
-- [x] Introduce proper hot-reloading for the config
+- [ ] Optimize performance
 
-- [x] Make the viewer be able to re-attach to the server
+    - [ ] Fix slow shutdown times
 
-- [x] Add support for [markdown highlight notes](https://github.com/orgs/community/discussions/16925)
+- [ ] Add github theme closer to github itself (limit width and center content)
 
-- [ ] Fix bugs
+    - Either as css or with a keybind
+
+- [ ] Write tests with hyperfine
 
 - [ ] Create packages
 
-- [ ] Write tests
-
-- [ ] Optimize performance
+- [ ] Allow multiple running instances at the same time on different docs
 
 ## Usage
 
@@ -42,13 +42,13 @@ For more information see [docs.md](./docs.md)
 
 ## A markdown viewer Framework?
 
-Yes. It's simpler than it sounds. 
+Yes. It's simpler than it sounds.
 
-Since igneous-md works by using a server in the background and then communicates with the built-in viewer, as well as the browser, 
-using https and websockets anyone could use this to write their own viewer. 
+Since igneous-md works by using a server in the background and then communicates with the built-in viewer, as well as the browser,
+using https and websockets anyone could use this to write their own viewer.
 
-The benefits of this being you would receive all of the hot-reloading and conversion from md to html for free, 
-while having full freedom to implement your viewer however they would like. 
+The benefits of this being you would receive all of the hot-reloading and conversion from md to html for free,
+while having full freedom to implement your viewer however they would like.
 
 The only real limitation on this is what the websocket json-protocol is written to support. (PRs welcome)
 
