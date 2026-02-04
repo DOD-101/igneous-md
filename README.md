@@ -32,6 +32,10 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [ ] Allow multiple running instances at the same time on different docs
 
+- [ ] Add change streaming API
+
+    - [ ] Editor integration either via plugin
+
 ## Usage
 
 ```
