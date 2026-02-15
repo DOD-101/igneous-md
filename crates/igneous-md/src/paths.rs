@@ -7,24 +7,22 @@ use itertools::Itertools;
 use std::{
     fs, io,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::LazyLock,
 };
 
-/// Returns the default config dir for the application
-pub fn default_config_dir() -> &'static PathBuf {
-    static CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
-    CONFIG_PATH.get_or_init(|| {
-        home_dir()
-            .expect("Couldn't find the home dir!")
-            .join(".config/igneous-md/")
-    })
-}
+/// Default config dir for the application
+pub static CONFIG_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    if cfg!(debug_assertions) {
+        return PathBuf::from("test");
+    }
 
-/// Returns the default css dir for the application
-pub fn default_css_dir() -> &'static PathBuf {
-    static CSS_PATH: OnceLock<PathBuf> = OnceLock::new();
-    CSS_PATH.get_or_init(|| default_config_dir().join("css"))
-}
+    home_dir()
+        .expect("Couldn't find the home dir!")
+        .join(".config/igneous-md/")
+});
+
+/// Default css dir for the application
+pub static CSS_PATH: LazyLock<PathBuf> = LazyLock::new(|| CONFIG_PATH.join("css"));
 
 /// Will attempt to read the given `css_dir` and organize the output
 ///
@@ -89,7 +87,7 @@ impl Paths {
     ) -> io::Result<Self> {
         Ok(Self {
             default_md,
-            config_dir: default_config_dir().into(),
+            config_dir: CONFIG_PATH.clone(),
             default_css: default_css.unwrap_or(Self::determine_default_css(&css_dir)?),
             css_dir,
         })

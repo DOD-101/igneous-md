@@ -1,7 +1,7 @@
 //! Just contains [export()].
 use std::{io, path::PathBuf};
 
-use crate::paths::default_config_dir;
+use crate::paths::CONFIG_PATH;
 /// Saves the given html string to disk
 ///
 /// The default location is in the users config dir, with the name:
@@ -18,7 +18,7 @@ pub fn export(html: String, other_path: Option<PathBuf>) -> io::Result<()> {
             chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
         )),
         Some(path) => path,
-        None => default_config_dir().join(format!(
+        None => CONFIG_PATH.join(format!(
             "html-export-{}.html",
             chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
         )),

@@ -34,8 +34,8 @@ mod paths;
 use cli::{Action, Cli};
 use errors::Error;
 use handlers::*;
-use paths::default_css_dir;
 use paths::Paths;
+use paths::CSS_PATH;
 
 #[cfg(feature = "viewer")]
 use {igneous_md_viewer::Viewer, std::thread};
@@ -69,14 +69,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         #[cfg(feature = "generate_config")]
         Action::GenerateConfig { overwrite } => {
-            if default_css_dir().exists() && !overwrite {
+            if CSS_PATH.exists() && !overwrite {
                 return Err(Box::new(Error::ConfigDirExists) as Box<dyn std::error::Error>);
             }
 
-            fs::create_dir_all(default_css_dir().join("hljs"))
+            fs::create_dir_all(CSS_PATH.join("hljs"))
                 .map_err(|e| Error::ConfigGenFailed(Box::new(e) as Box<dyn std::error::Error>))?;
 
-            config::generate::generate_config_files(default_css_dir()).await?;
+            config::generate::generate_config_files(&CSS_PATH).await?;
 
             Ok(())
         }
@@ -105,9 +105,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // creating the dirs.
 
             // Check if the config exists
-            if !default_css_dir().exists() {
+            if !CSS_PATH.exists() {
                 // Always at least create the dir
-                fs::create_dir_all(default_css_dir().join("hljs"))
+                fs::create_dir_all(CSS_PATH.join("hljs"))
                     .map_err(|e| Error::ConfigGenFailed(Box::new(e)))?;
 
                 // If compiled with generate_config, generate the config
@@ -129,7 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .next()
                         .is_some_and(|c| c == 'y')
                     {
-                        config::generate::generate_config_files(default_css_dir())
+                        config::generate::generate_config_files(&CSS_PATH)
                             .await
                             .map_err(Error::ConfigGenFailed)?;
                     }
@@ -138,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let paths = match Paths::new(
                 path,
-                css_dir.unwrap_or(default_css_dir().to_path_buf()),
+                css_dir.unwrap_or(CSS_PATH.to_path_buf()),
                 css.map(|p| PathBuf::from("/css").join(p)),
             ) {
                 Ok(p) => p,
