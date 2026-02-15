@@ -45,10 +45,14 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
         async {
             tokio::fs::write(
                 css_dir.join("github-markdown-dark.css"),
-                format!(
-                    "@import url(\"./hljs/github-dark.css\");\n{}",
-                    adjust_css(dark_res)
-                ),
+                adjust_css(dark_res.clone(), "github-dark.css", false),
+            )
+            .await
+        },
+        async {
+            tokio::fs::write(
+                css_dir.join("github-markdown-dark-centered.css"),
+                adjust_css(dark_res.clone(), "github-dark.css", true),
             )
             .await
         },
@@ -62,10 +66,14 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
         async {
             tokio::fs::write(
                 css_dir.join("github-markdown-light.css"),
-                format!(
-                    "@import url(\"./hljs/github-light.css\");\n{}",
-                    adjust_css(light_res)
-                ),
+                adjust_css(light_res.clone(), "github-light.css", false),
+            )
+            .await
+        },
+        async {
+            tokio::fs::write(
+                css_dir.join("github-markdown-light-centered.css"),
+                adjust_css(light_res.clone(), "github-light.css", true),
             )
             .await
         },
@@ -119,17 +127,28 @@ async fn fetch_config_files() -> reqwest::Result<(String, String, String, String
 /// 3. Add some custom additional styling
 ///
 /// For more information see the individual functions.
-fn adjust_css(css: String) -> String {
+fn adjust_css(css: String, hljs: &str, center: bool) -> String {
     let hexes = find_hexes(&css);
 
     let new_css = replace_hexes(css, hexes.clone());
 
+    let mut aditional_styles = ".markdown-body { padding: 32px !important; ".to_string();
+
+    if center {
+        aditional_styles.push_str("max-width: 830px !important; margin: auto !important;");
+    }
+
+    aditional_styles.push('}');
+
+    let css_vars = create_css_vars(hexes);
+
     format!(
-        "/*{}*/\n{}\n{}\n{}",
-        NOTICE,
-        create_css_vars(hexes),
-        ".markdown-body { margin: 32px !important; }",
-        new_css
+        r#"
+/*{NOTICE}*/
+@import url(\"./hljs/{hljs}\");
+{css_vars}
+{aditional_styles}
+{new_css}"#,
     )
 }
 

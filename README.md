@@ -22,10 +22,6 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
     - [ ] Fix slow shutdown times
 
-- [ ] Add github theme closer to github itself (limit width and center content)
-
-    - Either as css or with a keybind
-
 - [ ] Write tests with hyperfine
 
 - [ ] Create packages
@@ -36,6 +32,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
     - [ ] Editor integration either via plugin
 
+- [x] Add github theme closer to github itself (limit width and center content)
 ## Usage
 
 ```
