@@ -2,7 +2,7 @@
 //!
 //! The [Paths] struct is State managed by the [rocket] server, since it is needed to create
 //! new [crate::client::Client]s.
-use home::home_dir;
+use dirs::config_dir;
 use itertools::Itertools;
 use std::{
     fs, io,
@@ -16,13 +16,13 @@ pub static CONFIG_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
         return PathBuf::from("test");
     }
 
-    home_dir()
+    config_dir()
         .expect("Couldn't find the home dir!")
-        .join(".config/igneous-md/")
+        .join("igneous-md/")
 });
 
 /// Default css dir for the application
-pub static CSS_PATH: LazyLock<PathBuf> = LazyLock::new(|| CONFIG_PATH.join("css"));
+pub static CSS_PATH: LazyLock<PathBuf> = LazyLock::new(|| CONFIG_PATH.join("css/"));
 
 /// Will attempt to read the given `css_dir` and organize the output
 ///
