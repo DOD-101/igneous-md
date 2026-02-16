@@ -87,7 +87,7 @@ impl ServerMsg {
 enum ServerMsgType {
     /// A message telling the client to treat the body as a new css file path
     CssChange,
-    /// A message telling the client to reload the css, since a change has occured
+    /// A message telling the client to reload the css, since a change has occurred
     CssUpdate,
     /// A message telling the client to treat the body as the new content of the `<body>` element
     HtmlUpdate,

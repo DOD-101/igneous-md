@@ -206,10 +206,15 @@
         devShells.default = craneLib.devShell {
           # Inherit inputs from checks.
           checks = self.checks.${system};
-          packages = [
+          packages = with pkgs; [
+            prek
+            typos-lsp
           ];
-        };
 
+          shellHook = ''
+            prek install
+          '';
+        };
       }
     );
 }

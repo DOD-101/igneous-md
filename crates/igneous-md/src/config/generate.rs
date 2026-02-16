@@ -132,13 +132,13 @@ fn adjust_css(css: String, hljs: &str, center: bool) -> String {
 
     let new_css = replace_hexes(css, hexes.clone());
 
-    let mut aditional_styles = ".markdown-body { padding: 32px !important; ".to_string();
+    let mut additional_styles = ".markdown-body { padding: 32px !important; ".to_string();
 
     if center {
-        aditional_styles.push_str("max-width: 830px !important; margin: auto !important;");
+        additional_styles.push_str("max-width: 830px !important; margin: auto !important;");
     }
 
-    aditional_styles.push('}');
+    additional_styles.push('}');
 
     let css_vars = create_css_vars(hexes);
 
@@ -147,7 +147,7 @@ fn adjust_css(css: String, hljs: &str, center: bool) -> String {
 /*{NOTICE}*/
 @import url(\"./hljs/{hljs}\");
 {css_vars}
-{aditional_styles}
+{additional_styles}
 {new_css}"#,
     )
 }

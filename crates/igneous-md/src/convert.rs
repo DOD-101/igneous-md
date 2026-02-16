@@ -51,7 +51,7 @@ pub fn md_to_html(md: &str) -> String {
 
 /// Post process the given html, doing the following:
 ///
-/// 1. Adding the missing classes for taks-lists
+/// 1. Adding the missing classes for task-lists
 ///
 /// 2. Adjusts internal`.md` links to conform to the API format.
 ///
@@ -276,9 +276,9 @@ mod test {
             "[](../test.md)",
         ];
 
-        let html_ouput = md_input.map(md_to_html);
+        let html_output = md_input.map(md_to_html);
 
-        let mut elements = html_ouput.into_iter().map(|h| {
+        let mut elements = html_output.into_iter().map(|h| {
             let document = kuchikiki::parse_html().one(h);
 
             document
@@ -327,7 +327,7 @@ mod test {
 > but still shouldn't work
             "#,
             r#"
-> [!Note] 
+> [!Note]
 > `should work`
             "#,
             r#"
@@ -337,9 +337,9 @@ mod test {
             "#,
         ];
 
-        let html_ouput = md_input.map(md_to_html);
+        let html_output = md_input.map(md_to_html);
 
-        let mut elements = html_ouput.into_iter().map(|h| {
+        let mut elements = html_output.into_iter().map(|h| {
             let document = kuchikiki::parse_html().one(h);
 
             document.select_first(r#"div"#)

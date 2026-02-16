@@ -22,7 +22,7 @@ Configuring igneous-md is super simple (assuming you know some basic CSS).
 
 Simply copy one of the given CSS files and change whatever you want. If you want to change the highlighting of the code blocks, have a look in `hljs/`.
 
-## Default Config 
+## Default Config
 
 The default config contains the css files for the github theme. (light & dark)
 
@@ -54,9 +54,9 @@ vim.keymap.set("n", "gm", function()
 end, {})
 ```
 
-## Converting html to md 
+## Converting html to md
 
-Igneous-md allows you to quickly convert your `.md` files to html: 
+Igneous-md allows you to quickly convert your `.md` files to html:
 
 `igneous-md convert <PATH>`
 

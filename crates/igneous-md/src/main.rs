@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(export::export(
                 convert::initial_html(&css.clone().unwrap_or_default().to_string_lossy(), &html),
-                export_path.clone().map(PathBuf::from),
+                export_path,
             )
             .map_err(Error::ExportFailed)?)
         }

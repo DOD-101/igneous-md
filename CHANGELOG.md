@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-### Added 
+### Added
 
 - Ability to adjust update rate
 
@@ -20,7 +20,7 @@
 
 - Comment out notice in hljs css files
 - Fix link to github hljs css file
-- Greatly improve shutdown time 
+- Greatly improve shutdown time
 - Some task-list items (checklists) not having the correct classes
 
 ### Changed
@@ -39,7 +39,7 @@
 
 - Adjust the CLI to make subcommands usage more "normal"
 
-### Fixed 
+### Fixed
 
 - Panic when attempting to get the previous css file
 
@@ -57,4 +57,3 @@
 
 - Switch form [rouille](https://github.com/tomaka/rouille) to [rocket](https://rocket.rs/)
 - Move all communication between client and server to Websockets
-
