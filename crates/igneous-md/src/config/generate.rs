@@ -145,7 +145,7 @@ fn adjust_css(css: String, hljs: &str, center: bool) -> String {
     format!(
         r#"
 /*{NOTICE}*/
-@import url(\"./hljs/{hljs}\");
+@import url("./hljs/{hljs}");
 {css_vars}
 {additional_styles}
 {new_css}"#,
