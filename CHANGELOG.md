@@ -5,6 +5,7 @@
 ### Added
 
 - Ability to adjust update rate
+- Move to gtk4 and webkit6
 
 ## 0.3.0 - 2025-02-16
 

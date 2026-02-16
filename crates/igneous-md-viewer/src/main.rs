@@ -5,10 +5,9 @@
 //! It's useful for when you accidentally closed the viewer, but don't want to restart the whole
 //! server.
 use clap::{CommandFactory, Parser};
-use gtk::glib::BoolError;
 use igneous_md_viewer::Viewer;
 
-fn main() -> Result<(), BoolError> {
+fn main() {
     let cli = Cli::parse();
 
     if let Some(shell) = cli.completions {
@@ -18,8 +17,6 @@ fn main() -> Result<(), BoolError> {
             Cli::command().get_name(),
             &mut std::io::stdout(),
         );
-
-        return Ok(());
     }
 
     let viewer = Viewer::new(format!(
@@ -29,9 +26,7 @@ fn main() -> Result<(), BoolError> {
         cli.css.map(|s| format!("&css={}", s)).unwrap_or_default(),
     ));
 
-    viewer.start()?;
-
-    Ok(())
+    viewer.start();
 }
 
 #[derive(Debug, Parser)]

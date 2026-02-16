@@ -64,7 +64,7 @@
           buildInputs = with pkgs; [
             openssl
             pkg-config
-            webkitgtk_4_1
+            webkitgtk_6_0
             noto-fonts-color-emoji
             glib-networking
           ];
@@ -72,7 +72,7 @@
           nativeBuildInputs = with pkgs; [
             openssl
             pkg-config
-            webkitgtk_4_1
+            webkitgtk_6_0
             noto-fonts-color-emoji
 
             wrapGAppsHook4
