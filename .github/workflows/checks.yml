@@ -1,10 +1,12 @@
+---
 name: Rust checks
 
-on:
+"on":
   push:
     branches: ["master"]
   pull_request:
     branches: ["master"]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,10 +21,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Cache
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v5
         with:
           # A list of files, directories, and
           # wildcard patterns to cache and restore
@@ -32,21 +34,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          # An explicit key for restoring and saving the cache
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          # An ordered multiline string listing the prefix-matched keys,
-          # that are used for restoring stale cache if no cache hit occurred
-          # for key.
-          # Note `cache-hit` returns false in this case.
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Install dependencies for ubuntu
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev
+          sudo apt-get install -y libwebkitgtk-6.0-dev
 
-      - name: Checks
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy -- --no-deps
+      - uses: j178/prek-action@v1
