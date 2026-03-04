@@ -39,7 +39,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 - Rust 1.89 
 - rust cargo tools
 - gtk4
-
+- webkit-gtk 2.3x or better
 
 
 ## Usage
