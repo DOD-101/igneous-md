@@ -33,6 +33,14 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
     - [ ] Editor integration either via plugin
 
 - [x] Add github theme closer to github itself (limit width and center content)
+
+## Requiremens
+
+- rust 1.89+
+- gtk4
+- webkit-gtk 2.3x+
+
+
 ## Usage
 
 ```
