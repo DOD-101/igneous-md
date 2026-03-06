@@ -34,12 +34,65 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [x] Add github theme closer to github itself (limit width and center content)
 
-## Requiremens
+## Installation
 
-- rust 1.89+
-- gtk4
-- webkit-gtk 2.3x+
+### NixOS
 
+If your system uses nix [flakes](https://nix.dev/concepts/flakes.html) you can do the following:
+
+```nix
+# flake.nix
+inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+
+    igneous-md = {
+      url = "github:DOD-101/igneous-md"; # or /ref/tags/0.3.0 to pin a version
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+}
+```
+
+and then
+
+```nix
+# configuration.nix
+{
+    inputs,
+    ...
+}:
+{
+    environment.systemPackages = [
+        inputs.igneous-md.packages."${pkgs.stdenv.hostPlatform.system}".igneous-md-release
+    ];
+}
+```
+
+> [!IMPORTANT]
+> This will require building from source
+
+### Via Cargo
+
+`cargo install igneous-md`
+
+> [!IMPORTANT]
+> This will require building from source
+
+You must also install `webkitgtk 6`.
+
+
+### Building from source
+
+1. Clone the repo `git clone https://github.com/DOD-101/igneous-md.git`
+
+2. Install the following requirements:
+
+    - rust 1.89+
+    - gtk4
+    - webkit-gtk 2.3x+
+
+3. Run `cargo build --release`
+
+4. Finally run `cargo install --path crates/igneous-md`
 
 ## Usage
 
@@ -47,7 +100,72 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 igneous-md view path/to/file.md
 ```
 
-For more information see [docs.md](./docs.md)
+## FAQ
+
+> Or at least questions I think people could ask
+
+1. How do I view my markdown in the browser?
+
+   Simply pass the `--browser` flag. For all options run `igneous-md --help`
+
+   <!-- TODO: Add full --help auto-generated output -->
+
+2. How can I change the order of color schemes?
+
+   Prefix the css file names with numbers e.g:
+
+   ```
+   00_github-dark.css
+   01_github-light.css
+   ```
+
+## Configuration
+
+To get started run `igneous-md generate-config` (will run by automatically if you view a file without the config dir `~/.config/igneous-md/`)
+
+### Layout
+
+```sh
+# in ~/.config/igneous-md/
+
+css # general styling
+├── github-markdown-dark.css
+├── github-markdown-light.css
+└── hljs # codeblocks
+    ├── github-dark.css
+    └── github-light.css
+```
+
+> [!NOTE]
+> Config generation is only available if compiled with `--features generate_config` (a default feature)
+
+## Keybindings
+
+| Key    | Description                  |
+| ------ | ---------------------------- |
+| `c`    | Go to next color scheme      |
+| `C`    | Go to previous color scheme  |
+| `e`    | Export html                  |
+| `hjkl` | Vim bindings for moving      |
+
+## Neovim Integration
+
+This allows to to launch igneous-md directly from your editor on the current buffer
+
+```lua
+local job_id = -1
+vim.keymap.set("n", "gm", function()
+	if job_id ~= -1 then
+		vim.fn.jobstop(job_id)
+	end
+	local current_buffer_path = vim.fn.expand("%")
+	job_id = vim.fn.jobstart({ "igneous-md", "view", current_buffer_path })
+end, {})
+```
+
+## Converting md to html
+
+`igneous-md convert <PATH>`
 
 ## A markdown viewer Framework?
 

@@ -1,7 +1,3 @@
----
-Here is the installation guide for **Igneous-md**.
-
-
 ### 🛠️ Installation Guide for Igneous-md
 
 This guide covers installing the required system dependencies (Rust, GTK4, webkit-gtk) and building the application from source.
@@ -60,12 +56,12 @@ Once the dependencies from Part A are installed, you can build Igneous-md from s
 1.  **Ensure Rust is installed:** `pkg_add rust`
 2.  **Ensure Dependencies are installed:** You will need to install `gtk4` and `webkit-gtk` from pkgsrc.
     ```zsh
-    cd /usr/pkgsrc/x11/gtk4  
+    cd /usr/pkgsrc/x11/gtk4
     make configure
     make build # takes a long time -> have a cup of coffee
     make install
     make clean
-    cd /usr/pkgsrc/www/webkit-gtk 
+    cd /usr/pkgsrc/www/webkit-gtk
     make configure
     make build
     make install
@@ -104,5 +100,3 @@ Or view a markdown file:
 ```bash
 igneous-md view path/to/your/file.md
 ```
-
-
