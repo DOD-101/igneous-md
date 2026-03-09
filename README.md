@@ -32,6 +32,8 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
     - [ ] Editor integration either via plugin
 
+- [ ] Fix bug relating to multi line GFM notes
+
 - [x] Add github theme closer to github itself (limit width and center content)
 
 ## Installation
@@ -68,27 +70,41 @@ and then
 ```
 
 > [!IMPORTANT]
-> This will require building from source
+> This will build the project from source (see build dependencies)
 
 ### Via Cargo
 
 `cargo install igneous-md`
 
 > [!IMPORTANT]
-> This will require building from source
+> This will build the project from source (see build dependencies)
 
-You must also install `webkitgtk 6`.
-
+You must also install `webkit-gtk 2.3x+`.
 
 ### Building from source
 
 1. Clone the repo `git clone https://github.com/DOD-101/igneous-md.git`
 
-2. Install the following requirements:
+2. Install the following build dependencies:
 
     - rust 1.89+
     - gtk4
-    - webkit-gtk 2.3x+
+    - webkit-gtk 2.3x+ ( also a runtime dependency)
+
+    #### Arch Linux
+
+    ```sh
+    sudo pacman -Syu gtk4 webkitgtk-6.0 base-devel
+    ```
+
+    #### Ubuntu
+
+    ```bash
+    sudo apt update && apt install libgtk-4-dev libwebkitgtk-6.0-dev build-essential libssl-dev
+    ```
+
+    > [!NOTE]
+    > Feel free to add your distro here! PRs welcome!
 
 3. Run `cargo build --release`
 
