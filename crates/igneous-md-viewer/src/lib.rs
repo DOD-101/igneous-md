@@ -28,7 +28,7 @@ impl Viewer {
     }
 
     /// Build the actual GTK UI
-    fn build_ui(addr: String, app: &Application) {
+    fn build_ui(_addr: String, app: &Application) {
         let window = ApplicationWindow::builder()
             .application(app)
             .title("igneous-md viewer")
@@ -39,10 +39,12 @@ impl Viewer {
 
         let view = WebView::builder().web_context(&context).build();
 
+        view.load_html(include_str!("./index.html"), None);
+
         view.show();
 
         window.set_child(Some(&view));
         window.present();
-        view.load_uri(&format!("http://{}", addr));
+        // view.load_uri(&format!("http://{}", addr));
     }
 }
