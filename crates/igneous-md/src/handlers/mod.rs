@@ -42,6 +42,16 @@ pub fn serve_highlight_js() -> RawJavaScript<&'static str> {
     RawJavaScript(include_str!("../highlight.min.js"))
 }
 
+/// Serve /src/mathjaxV4.js from a string included in the binary at compile time
+///
+/// ## Note:
+///
+/// See [serve_main_js()]
+#[get("/src/mathjaxV4.js")]
+pub fn serve_math_jax_js() -> RawJavaScript<&'static str> {
+    RawJavaScript(include_str!("../mathjaxV4.js"))
+}
+
 #[catch(404)]
 pub fn not_found() -> &'static str {
     "404 Not Found"

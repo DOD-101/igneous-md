@@ -34,6 +34,8 @@ pub fn md_to_html(md: &str) -> String {
                 html_flow: true,
                 html_text: true,
                 definition: true,
+                math_flow: true,
+                math_text: true,
                 ..markdown::Constructs::gfm()
             },
             ..markdown::ParseOptions::gfm()
@@ -250,6 +252,33 @@ pub fn initial_html(css: &str, body: &str) -> String {
         <title>Igneous-md</title>
         <script src="./src/highlight.min.js"></script>
         <script src="./src/main.js" defer></script>
+        <script>
+          MathJax = {{
+            options: {{
+              skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+            }},
+            tex: {{
+              inlineMath: [['$', '$']],
+              displayMath: [['$$', '$$']],
+            }},
+            startup: {{
+              ready() {{
+                MathJax.startup.defaultReady();
+                // Re-process code.language-math elements
+                document.querySelectorAll('code.language-math').forEach(el => {{
+                  const isDisplay = el.classList.contains('math-display');
+                  const wrapper = document.createElement('span');
+                  wrapper.textContent = isDisplay
+                    ? '$$' + el.textContent + '$$'
+                    : '$' + el.textContent + '$';
+                  el.replaceWith(wrapper);
+                }});
+                MathJax.typesetPromise();
+              }}
+            }}
+          }};
+        </script>
+        <script async src="./src/mathjaxV4.js"></script>
         <link id="md-stylesheet" rel="stylesheet" href="{}" />
     </head>
     <body class="markdown-body" id="body">
