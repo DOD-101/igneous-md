@@ -1,6 +1,7 @@
 //! Module containing the [Client] struct.
 //!
 //! For more information see [Client]
+use kuchikiki::traits::*;
 use std::{
     io,
     path::PathBuf,
@@ -31,7 +32,7 @@ pub struct Client {
     last_modified: SystemTime,
     /// The markdown from the file
     md: String,
-    /// The html from the file
+    /// The html `<main>` element of the file
     html: String,
     /// [Config] shared between all clients
     config: Arc<Mutex<Config>>,
@@ -188,7 +189,20 @@ impl Client {
 
         self.update_md()?;
 
-        self.html = md_to_html(&self.md);
+        let html = md_to_html(&self.md);
+
+        let document = kuchikiki::parse_html().one(html);
+
+        let mut body = Vec::new();
+        document
+            .select_first("main")
+            .expect("Html must have a main")
+            .as_node()
+            .serialize(&mut body)
+            .expect("Serialization should never fail, if it does there is a bug.");
+
+        self.html =
+            String::from_utf8(body).expect("Converting main element to string should never fail.");
 
         Ok(Some(self.html.clone()))
     }

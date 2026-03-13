@@ -6,7 +6,10 @@ use kuchikiki::{traits::*, NodeRef};
 use markdown::{to_html_with_options, Options};
 use markup5ever::{interface::QualName, local_name, namespace_url, ns};
 use regex::Regex;
-use std::collections::{HashMap, VecDeque};
+use std::{
+    collections::{HashMap, VecDeque},
+    vec,
+};
 
 static ALERT_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"^\s*\[!(?i)(note|tip|important|warning|caution)\](\s*$|\s*\n)"#)
@@ -26,7 +29,7 @@ static SVGS: std::sync::LazyLock<HashMap<&'static str, &'static str>> =
 
 /// The actual conversion from md to HTML
 ///
-/// Uses  [post_process_html] to adjust the HTML before returning it
+/// Uses [post_process_html] to adjust the HTML before returning it
 pub fn md_to_html(md: &str) -> String {
     let markdown_options = Options {
         parse: markdown::ParseOptions {
@@ -53,14 +56,35 @@ pub fn md_to_html(md: &str) -> String {
 
 /// Post process the given html, doing the following:
 ///
-/// 1. Adding the missing classes for task-lists
+/// 1. Add a `<main>` element
 ///
-/// 2. Adjusts internal`.md` links to conform to the API format.
+/// 2. Adding the missing classes for task-lists
 ///
-/// 3. Adds GitHub-style alerts
+/// 3. Adjusts internal`.md` links to conform to the API format.
+///
+/// 4. Adds GitHub-style alerts
 fn post_process_html(html: String) -> String {
     // Parse the HTML string into a DOM tree
     let document = kuchikiki::parse_html().one(html);
+
+    let mut body_children = vec![];
+
+    let body = document.select_first("body").unwrap();
+    let body = body.as_node();
+
+    body.children().for_each(|c| {
+        c.detach();
+        body_children.push(c);
+    });
+
+    let main =
+        kuchikiki::NodeRef::new_element(QualName::new(None, ns!(html), local_name!("main")), []);
+
+    for c in body_children {
+        main.append(c);
+    }
+
+    body.append(main);
 
     // --- Add missing classes to task-lists ---
     //
@@ -255,7 +279,7 @@ pub fn initial_html(css: &str, body: &str) -> String {
         <script>
           MathJax = {{
             options: {{
-              skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+              skipHtmlTags: ['script', 'noscript', 'style', 'textarea'],
             }},
             tex: {{
               inlineMath: [['$', '$']],
@@ -278,11 +302,13 @@ pub fn initial_html(css: &str, body: &str) -> String {
             }}
           }};
         </script>
-        <script async src="./src/mathjaxV4.js"></script>
+        <script defer src="./src/mathjaxV4.js"></script>
         <link id="md-stylesheet" rel="stylesheet" href="{}" />
     </head>
     <body class="markdown-body" id="body">
+    <main>
     {}
+    </main>
     </body>
     </html>
     "#,

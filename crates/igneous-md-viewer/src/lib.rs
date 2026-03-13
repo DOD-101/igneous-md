@@ -1,5 +1,5 @@
 use gtk4::{prelude::*, Application, ApplicationWindow};
-use webkit6::{prelude::*, CacheModel, WebContext, WebView};
+use webkit6::{prelude::*, CacheModel, Settings, WebContext, WebView};
 
 /// A struct representing the igneous-md markdown viewer.
 #[derive(Debug)]
@@ -37,7 +37,10 @@ impl Viewer {
         let context = WebContext::default().unwrap();
         context.set_cache_model(CacheModel::DocumentBrowser);
 
-        let view = WebView::builder().web_context(&context).build();
+        let view = WebView::builder()
+            .web_context(&context)
+            .settings(&Settings::builder().enable_developer_extras(true).build())
+            .build();
 
         view.show();
 
