@@ -136,6 +136,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
+            if let Err(e) = fs::write("/tmp/ingeous-md", port.to_string()) {
+                log::error!("Failed to write port to tmp file: {e}")
+            };
+
             let paths = match Paths::new(
                 path,
                 css_dir.unwrap_or(CSS_PATH.to_path_buf()),
