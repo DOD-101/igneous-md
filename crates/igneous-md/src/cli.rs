@@ -41,9 +41,10 @@ pub enum Action {
         /// Port to run the server on
         #[arg(short, long, default_value = "2323")]
         port: u16,
-        /// Open browser tab
-        #[arg(short, long, default_value = "false")]
-        browser: bool,
+        // TODO: Add this option back in here once viewer is updated to not need an http server
+        // /// Open browser tab
+        // #[arg(short, long, visible_aliases = ["web"], default_value = "false")]
+        // browser: bool,
         /// How often to check for updates (in ms)
         #[arg(short, long, default_value = "1000")]
         update_rate: u64,

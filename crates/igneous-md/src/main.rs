@@ -38,7 +38,10 @@ use paths::Paths;
 use paths::CSS_PATH;
 
 #[cfg(feature = "viewer")]
-use {igneous_md_viewer::Viewer, std::thread};
+use {
+    igneous_md_viewer::{Address, Viewer},
+    std::thread,
+};
 
 #[cfg(feature = "generate_config")]
 use std::{io, io::Write};
@@ -95,7 +98,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             css,
             css_dir,
             port,
-            browser,
             update_rate,
             #[cfg(feature = "viewer")]
             no_viewer,
@@ -166,16 +168,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
-            // The url of the md file, in the format:
-            // localhost:port
-            let address = format!("localhost:{}?update_rate={}", port, update_rate);
-
-            if browser && open::that_detached(&address).is_err() {
-                log::warn!("Failed to open browser");
-            }
-
             #[cfg(feature = "viewer")]
             if !no_viewer {
+                let address = Address::new("localhost", port, update_rate, None);
                 let client = Viewer::new(address);
 
                 thread::spawn(move || client.start());

@@ -5,7 +5,7 @@
 //! It's useful for when you accidentally closed the viewer, but don't want to restart the whole
 //! server.
 use clap::{CommandFactory, Parser};
-use igneous_md_viewer::Viewer;
+use igneous_md_viewer::{Address, Viewer};
 
 fn main() {
     let cli = Cli::parse();
@@ -19,12 +19,17 @@ fn main() {
         );
     }
 
-    let viewer = Viewer::new(format!(
-        "localhost:{}/?update_rate={}{}",
-        cli.port,
-        cli.update_rate,
-        cli.css.map(|s| format!("&css={}", s)).unwrap_or_default(),
-    ));
+    let addr = Address::new("localhost", cli.port, cli.update_rate, cli.css.as_deref());
+
+    if cli.browser {
+        if open::that_detached(addr.to_string()).is_err() {
+            println!("WARN: Failed to open browser");
+        }
+
+        return;
+    }
+
+    let viewer = Viewer::new(addr);
 
     viewer.start();
 }
@@ -46,4 +51,7 @@ pub struct Cli {
     /// How often to check for updates (in ms)
     #[arg(short, long, default_value = "1000")]
     pub update_rate: u64,
+    /// Open in browser instead of standalone
+    #[arg(long, visible_aliases = ["web"])]
+    pub browser: bool,
 }

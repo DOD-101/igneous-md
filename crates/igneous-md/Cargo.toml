@@ -13,6 +13,7 @@ authors.workspace = true
 [features]
 default = ["generate_config", "viewer"]
 generate_config = ["dep:reqwest"]
+# TODO: We might remove this feat and just spawn it using a command
 viewer = ["dep:igneous-md-viewer"]
 
 [dependencies]
@@ -24,7 +25,6 @@ itertools = "0.13.0"
 kuchikiki = "0.8.2"
 log = "0.4.22"
 markdown = "1.0.0-alpha.20"
-open = "5.3.0"
 regex = "1.11.1"
 reqwest = { version = "0.12.11", optional = true }
 rocket = "0.5.1"
