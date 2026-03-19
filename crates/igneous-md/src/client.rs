@@ -171,12 +171,13 @@ impl Client {
     /// Get the current css file from [Self::config.css_paths] without changing the index
     #[allow(dead_code)]
     pub fn current_css(&self) -> Option<PathBuf> {
-        self.config
+        dbg!(dbg!(self
+            .config
             .lock()
             .expect("Failed to lock config. This should never happen.")
-            .get_css_paths_clone()
-            .get(self.current_css_index)
-            .cloned()
+            .get_css_paths_clone())
+        .get(self.current_css_index)
+        .cloned())
     }
 
     /// Checks if the`.md` file has changed, if so returning the new html else returning [None]

@@ -267,53 +267,8 @@ fn post_process_html(html: String) -> String {
 ///
 /// This is mainly used to return a valid HTML document and load the required JS files.
 pub fn initial_html(css: &str, body: &str) -> String {
-    format!(
-        r#"
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8"/>
-        <title>Igneous-md</title>
-        <script src="./src/highlight.min.js"></script>
-        <script src="./src/main.js" defer></script>
-        <script>
-          MathJax = {{
-            options: {{
-              skipHtmlTags: ['script', 'noscript', 'style', 'textarea'],
-            }},
-            tex: {{
-              inlineMath: [['$', '$']],
-              displayMath: [['$$', '$$']],
-            }},
-            startup: {{
-              ready() {{
-                MathJax.startup.defaultReady();
-                // Re-process code.language-math elements
-                document.querySelectorAll('code.language-math').forEach(el => {{
-                  const isDisplay = el.classList.contains('math-display');
-                  const wrapper = document.createElement('span');
-                  wrapper.textContent = isDisplay
-                    ? '$$' + el.textContent + '$$'
-                    : '$' + el.textContent + '$';
-                  el.replaceWith(wrapper);
-                }});
-                MathJax.typesetPromise();
-              }}
-            }}
-          }};
-        </script>
-        <script defer src="./src/mathjaxV4.js"></script>
-        <link id="md-stylesheet" rel="stylesheet" href="{}" />
-    </head>
-    <body class="markdown-body" id="body">
-    <main>
-    {}
-    </main>
-    </body>
-    </html>
-    "#,
-        css, body
-    )
+    // HACK: Rework this function
+    body.to_string()
 }
 
 #[cfg(test)]

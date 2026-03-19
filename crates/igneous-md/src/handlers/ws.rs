@@ -16,12 +16,18 @@ use rocket::{
 };
 use rocket_ws::{stream::DuplexStream, Channel, Message, WebSocket};
 use std::{
-    io,
+    fs,
+    io::{self, read_to_string},
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 
-use crate::{client::Client, config::Config, export::export, paths::Paths};
+use crate::{
+    client::Client,
+    config::Config,
+    export::export,
+    paths::{Paths, CONFIG_PATH},
+};
 
 /// Struct representing a message from the client
 #[derive(Deserialize, Debug)]
@@ -35,6 +41,9 @@ struct ClientMsg {
 /// Different types of messages the client can send
 #[derive(Deserialize, Debug)]
 enum ClientMsgType {
+    /// Get the current css
+    CurrentCss,
+
     /// Request the next css file. See [Client::config]
     ChangeCssNext,
     /// Request the previous css file. See [Client::config]
@@ -85,6 +94,8 @@ impl ServerMsg {
 /// Different types of messages the server can send
 #[derive(Serialize, Debug)]
 enum ServerMsgType {
+    /// The Current css
+    CurrentCss,
     /// A message telling the client to treat the body as a new css file path
     CssChange,
     /// A message telling the client to reload the css, since a change has occurred
@@ -195,6 +206,21 @@ pub async fn upgrade_connection(
 /// [upgrade_connection()] uses this to handle the incoming messages from the client
 fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> ServerMsg {
     match msg.r#type {
+        ClientMsgType::CurrentCss => {
+            let css = client
+                .current_css()
+                .map(|v| CONFIG_PATH.join(v.strip_prefix("/").unwrap()));
+
+            if let Some(css) = css {
+                ServerMsg {
+                    r#type: ServerMsgType::CurrentCss,
+                    body: fs::read_to_string(css).unwrap(),
+                }
+            } else {
+                ServerMsg::error("Could not read css file".to_string())
+            }
+        }
+
         ClientMsgType::ChangeCssNext => {
             let path = client.next_css();
 

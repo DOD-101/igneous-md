@@ -185,17 +185,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .manage(paths)
                 .manage(config)
                 .mount("/", FileServer::from("."))
-                .mount(
-                    "/",
-                    routes![
-                        serve_main_js,
-                        serve_highlight_js,
-                        serve_math_jax_js,
-                        serve_css,
-                        get_initial_md,
-                        upgrade_connection,
-                    ],
-                )
+                .mount("/", routes![serve_css, get_initial_md, upgrade_connection,])
                 .register("/", catchers![not_found, internal_error])
                 .launch()
                 .await?;

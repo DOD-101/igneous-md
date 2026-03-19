@@ -74,6 +74,7 @@
             pkg-config
             webkitgtk_6_0
             noto-fonts-color-emoji
+            esbuild
 
             wrapGAppsHook4
 

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Igneous-md</title>
+    <script>{{highlightjs}}</script>
+    <script defer>{{mathjaxjs}}</script>
+    <style id="md-style"></style>
+    <script defer>{{mainjs}}</script>
+</head>
+<body class="markdown-body" id="body">
+<main>
+<h1>Hello World</h1>
+</main>
+</body>
+</html>
