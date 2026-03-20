@@ -32,7 +32,8 @@ document.addEventListener("keydown", (event) => {
         case "c":
             ws.send(
                 JSON.stringify({
-                    type: "ChangeCssNext",
+                    t: "ChangeCss",
+                    c: { index: 1, relative: true },
                 }),
             );
             break;
@@ -40,7 +41,8 @@ document.addEventListener("keydown", (event) => {
         case "C":
             ws.send(
                 JSON.stringify({
-                    type: "ChangeCssPrev",
+                    t: "ChangeCss",
+                    c: { index: -1, relative: true },
                 }),
             );
             break;
@@ -48,7 +50,8 @@ document.addEventListener("keydown", (event) => {
         case "e":
             ws.send(
                 JSON.stringify({
-                    type: "ExportHtml",
+                    t: "ExportHtml",
+                    c: {},
                 }),
             );
             break;
@@ -56,7 +59,8 @@ document.addEventListener("keydown", (event) => {
         case "r":
             ws.send(
                 JSON.stringify({
-                    type: "RedirectDefault",
+                    t: "RedirectDefault",
+                    c: {},
                 }),
             );
 
@@ -95,8 +99,10 @@ document.addEventListener("keydown", (event) => {
 function handle_redirect(href) {
     ws.send(
         JSON.stringify({
-            type: "Redirect",
-            body: href,
+            t: "Redirect",
+            c: {
+                path: href,
+            },
         }),
     );
 
@@ -125,27 +131,24 @@ function safeParse(jsonString) {
 
 ws.onmessage = (event) => {
     const data = safeParse(event.data);
+
     if (!data) return;
 
     // TODO: It would be nice to use the cached css file if it hasn't changed
+    //
 
-    switch (data.type) {
-        case "CurrentCss": {
-            console.log(styleSheet, data);
-            styleSheet.textContent = data.body;
-            break;
-        }
-        case "CssChange":
-            styleSheet.href = `${data.body}?_noise=${Math.random()}`;
-            break;
+    const tag = data.t;
+    const content = data.c;
+
+    switch (tag) {
         case "CssUpdate":
-            styleSheet.href = `${styleSheet.href.split("?")[0]}?_noise=${Math.random()}`;
+            styleSheet.textContent = content.css;
             break;
         case "HtmlUpdate":
             {
                 const main = document.body;
 
-                main.innerHTML = data.body;
+                main.innerHTML = content.html;
 
                 console.log("Markdown updated");
                 hljs.configure({
@@ -170,7 +173,7 @@ ws.onmessage = (event) => {
             }
             break;
         default:
-            console.warn("Unknown message type:", data.type);
+            console.warn("Unknown message type:", tag);
             break;
     }
 };
@@ -178,7 +181,8 @@ ws.onmessage = (event) => {
 ws.onopen = () => {
     ws.send(
         JSON.stringify({
-            type: "CurrentCss",
+            t: "ChangeCss",
+            c: { index: 0, relative: true },
         }),
     );
 };

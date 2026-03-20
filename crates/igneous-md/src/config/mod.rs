@@ -58,6 +58,11 @@ impl Config {
         self.css_paths.lock().unwrap().clone()
     }
 
+    /// How many css paths there are
+    pub fn css_paths_len(&self) -> usize {
+        self.css_paths.lock().unwrap().len()
+    }
+
     /// Get [Self::css_dir]
     ///
     /// This will just be [Paths::get_css_dir] of the [Paths] passed to [Self::new]

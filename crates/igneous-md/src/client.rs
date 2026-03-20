@@ -39,7 +39,9 @@ pub struct Client {
     /// Receiver of [notify::Event]s
     pub config_update_receiver: broadcast::Receiver<notify::Event>,
     /// The current position in [Config::css_paths]
-    current_css_index: usize,
+    ///
+    /// If this is [None] then there are no css paths available.
+    current_css_index: Option<u16>,
 }
 
 // NOTE: We could implement conversions to booleans here
@@ -56,7 +58,18 @@ pub enum MdChanged {
 impl Client {
     /// Attempt to create a new [Client]
     pub fn new(paths: &Paths, config: Arc<Mutex<Config>>) -> Self {
-        let config_update_receiver = config.lock().unwrap().update_sender.subscribe();
+        let (config_update_receiver, current_css_index);
+        {
+            let config = config.lock().unwrap();
+
+            config_update_receiver = config.update_sender.subscribe();
+            current_css_index = if config.css_paths_len() > 0 {
+                Some(0)
+            } else {
+                None
+            }
+        }
+
         Self {
             md_path: paths.get_default_md(),
             md: String::new(),
@@ -64,7 +77,7 @@ impl Client {
             html: String::new(),
             config,
             config_update_receiver,
-            current_css_index: 0,
+            current_css_index,
         }
     }
 
@@ -117,67 +130,16 @@ impl Client {
             .unwrap_or(self.html.clone()))
     }
 
-    /// Get the next css file in [Self::config.css_paths], only returning [None] if it is empty.
-    ///
-    /// ## Note:
-    ///
-    /// The [Self::next_css] and [Self::previous_css] functions work by moving a pointer.
-    ///
-    /// Keep this in mind, as it differs from an [std::iter::Iterator]
-    pub fn next_css(&mut self) -> Option<PathBuf> {
-        let config = self
-            .config
-            .lock()
-            .expect("Failed to lock config. This should never happen.");
-
-        if config.get_css_paths_clone().is_empty() {
-            return None;
-        }
-
-        self.current_css_index = (self.current_css_index + 1) % config.get_css_paths_clone().len();
-
-        config
-            .get_css_paths_clone()
-            .get(self.current_css_index)
-            .cloned()
-    }
-
-    /// Get the previous css file in [Self::config.css_paths], only returning [None] if it is empty.
-    ///
-    /// ## Note:
-    ///
-    /// See [Self::next_css]
-    pub fn previous_css(&mut self) -> Option<PathBuf> {
-        let config = self
-            .config
-            .lock()
-            .expect("Failed to lock config. This should never happen.");
-
-        if config.get_css_paths_clone().is_empty() {
-            return None;
-        }
-
-        self.current_css_index = self
-            .current_css_index
-            .checked_sub(1)
-            .unwrap_or(config.get_css_paths_clone().len() - 1);
-
-        config
-            .get_css_paths_clone()
-            .get(self.current_css_index)
-            .cloned()
-    }
-
     /// Get the current css file from [Self::config.css_paths] without changing the index
-    #[allow(dead_code)]
     pub fn current_css(&self) -> Option<PathBuf> {
-        dbg!(dbg!(self
-            .config
-            .lock()
-            .expect("Failed to lock config. This should never happen.")
-            .get_css_paths_clone())
-        .get(self.current_css_index)
-        .cloned())
+        self.current_css_index.and_then(|i| {
+            self.config
+                .lock()
+                .expect("Failed to lock config. This should never happen.")
+                .get_css_paths_clone()
+                .get(i as usize)
+                .cloned()
+        })
     }
 
     /// Checks if the`.md` file has changed, if so returning the new html else returning [None]
@@ -207,6 +169,44 @@ impl Client {
 
         Ok(Some(self.html.clone()))
     }
+
+    // BUG: Potentially I have not tested all the invariants around if there are no css paths,
+    // since in the near future I wish to change how interactions with css work in general.
+
+    /// Change the current css
+    ///
+    /// Makes sure the value is always valid
+    ///
+    /// If relative is `false` ignores the current value.
+    pub fn change_current_css_index(&mut self, change: i16, relative: bool) {
+        if let Some(i) = self.current_css_index {
+            let raw_index = if relative { i as i16 + change } else { change };
+
+            let max_index = self.config.lock().unwrap().css_paths_len() as i16 - 1;
+
+            let index = if max_index == 0 {
+                // since it is the only option
+                0
+            } else if raw_index < 0 {
+                // + because the number is negative
+                (max_index + 1) + (raw_index % max_index)
+            } else if raw_index > max_index {
+                raw_index % (max_index + 1)
+            } else {
+                raw_index
+            };
+
+            self.current_css_index = Some(index as u16);
+
+            debug_assert!(
+                self.current_css_index
+                    .is_some_and(|v| (v as usize) < self.config.lock().unwrap().css_paths_len()),
+                "current_css_index is invalid: max-index: {:?}; index: {:?}",
+                self.config.lock().unwrap().css_paths_len() - 1,
+                self.current_css_index
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -215,15 +215,26 @@ mod test {
 
     impl Client {
         pub fn new_testing(config: Arc<Mutex<Config>>) -> Self {
-            let update_receiver = config.lock().unwrap().update_sender.subscribe();
+            let (config_update_receiver, current_css_index);
+            {
+                let config = config.lock().unwrap();
+
+                config_update_receiver = config.update_sender.subscribe();
+                current_css_index = if config.css_paths_len() > 0 {
+                    Some(0)
+                } else {
+                    None
+                }
+            }
+
             Self {
                 md_path: PathBuf::new(),
                 md: String::new(),
                 last_modified: SystemTime::UNIX_EPOCH,
                 html: String::new(),
-                config_update_receiver: update_receiver,
+                config_update_receiver,
                 config,
-                current_css_index: 0,
+                current_css_index,
             }
         }
     }
@@ -236,11 +247,16 @@ mod test {
             PathBuf::from("style3.css"),
         ]))));
 
-        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style3.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style3.css")));
+        client.change_current_css_index(1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        client.change_current_css_index(1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        client.change_current_css_index(1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        client.change_current_css_index(1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        client.change_current_css_index(1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
     }
 
     #[test]
@@ -251,11 +267,16 @@ mod test {
             PathBuf::from("style3.css"),
         ]))));
 
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style2.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style2.css")));
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
     }
 
     #[test]
@@ -266,26 +287,23 @@ mod test {
             PathBuf::from("style3.css"),
         ]))));
 
-        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style2.css")));
-    }
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
 
-    #[test]
-    fn next_previous_mixed_2() {
-        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
-            PathBuf::from("style1.css"),
-            PathBuf::from("style2.css"),
-            PathBuf::from("style3.css"),
-        ]))));
+        client.change_current_css_index(2, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
 
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style3.css")));
+        client.change_current_css_index(-2, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+
+        client.change_current_css_index(0, false);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+
+        client.change_current_css_index(9, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+
+        client.change_current_css_index(10, false);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
     }
 
     #[test]
@@ -294,18 +312,33 @@ mod test {
             PathBuf::from("style1.css"),
         ]))));
 
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.next_css(), Some(PathBuf::from("style1.css")));
-        assert_eq!(client.previous_css(), Some(PathBuf::from("style1.css")));
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+
+        client.change_current_css_index(1, true);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+
+        client.change_current_css_index(2, false);
+        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
     }
 
     #[test]
     fn next_previous_on_empty() {
         let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![]))));
 
-        assert!(client.next_css().is_none());
-        assert!(client.previous_css().is_none());
+        client.change_current_css_index(-1, true);
+        assert_eq!(client.current_css(), None);
+
+        client.change_current_css_index(1, true);
+        assert_eq!(client.current_css(), None);
+
+        client.change_current_css_index(1, false);
+        assert_eq!(client.current_css(), None);
+
+        client.change_current_css_index(-1, false);
+        assert_eq!(client.current_css(), None);
     }
 }
