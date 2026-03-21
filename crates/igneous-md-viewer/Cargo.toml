@@ -14,6 +14,7 @@ clap_complete.workspace = true
 gtk4 = "0.10.3"
 webkit6 = "0.5.0"
 open = "5.3.0"
+mime_guess = "2.0.5"
 
 [build-dependencies]
 askama = { version = "0.15.4", default-features = false, features = [

@@ -63,6 +63,8 @@ pub fn md_to_html(md: &str) -> String {
 /// 3. Adjusts internal`.md` links to conform to the API format.
 ///
 /// 4. Adds GitHub-style alerts
+///
+/// 5. Make <img> tags use `asset://` URI
 fn post_process_html(html: String) -> String {
     // Parse the HTML string into a DOM tree
     let document = kuchikiki::parse_html().one(html);
@@ -253,6 +255,21 @@ fn post_process_html(html: String) -> String {
         // Replace the blockquote with the alert container
         blockquote.insert_after(alert_container_node);
         blockquote.detach();
+    }
+
+    // --- Make <img>s use `asset://` URI ---
+
+    let imgs = body.select("img").unwrap();
+
+    for img in imgs {
+        if let Some(v) = img.attributes.borrow_mut().get_mut("src") {
+            // don't touch non local paths
+            if !(v.starts_with(".") || v.starts_with("/")) {
+                continue;
+            }
+
+            *v = format!("asset://{v}");
+        }
     }
 
     // Serialize the modified DOM back to HTML

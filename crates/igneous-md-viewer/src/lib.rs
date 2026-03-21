@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
-use gtk4::{prelude::*, Application, ApplicationWindow};
-use webkit6::{prelude::*, CacheModel, Settings, WebContext, WebView};
+use gtk4::{gio, glib, prelude::*, Application, ApplicationWindow};
+use webkit6::{prelude::*, CacheModel, Settings, URISchemeRequest, WebContext, WebView};
 
 /// A struct representing the igneous-md markdown viewer.
 #[derive(Debug)]
@@ -38,6 +38,30 @@ impl<'a> Viewer<'a> {
 
         let context = WebContext::default().unwrap();
         context.set_cache_model(CacheModel::DocumentBrowser);
+        // TODO: Not sure this will behave properly with relative paths in all cases. Needs further
+        // testing.
+        //
+        // TODO: Document this as necessary for writing your own viewer
+        context.register_uri_scheme("asset", |req: &URISchemeRequest| {
+            let uri = req.uri().unwrap();
+            let path = uri.strip_prefix("asset://").unwrap();
+
+            match std::fs::read(path) {
+                Ok(bytes) => {
+                    let mime = mime_guess::from_path(path)
+                        .first_or_octet_stream()
+                        .to_string();
+                    let stream = gio::MemoryInputStream::from_bytes(&glib::Bytes::from(&bytes));
+                    req.finish(&stream, bytes.len() as i64, Some(&mime));
+                }
+                Err(e) => {
+                    req.finish_error(&mut glib::Error::new(
+                        gio::IOErrorEnum::NotFound,
+                        &e.to_string(),
+                    ));
+                }
+            }
+        });
 
         let view = WebView::builder()
             .web_context(&context)
