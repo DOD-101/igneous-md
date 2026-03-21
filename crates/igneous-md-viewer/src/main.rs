@@ -19,7 +19,13 @@ fn main() {
         );
     }
 
-    let addr = Address::new("localhost", cli.port, cli.update_rate, cli.css.as_deref());
+    let addr = Address::new(
+        "localhost",
+        cli.port,
+        cli.update_rate,
+        cli.css.as_deref(),
+        cli.path.as_str(),
+    );
 
     if cli.browser {
         if open::that_detached(addr.to_string()).is_err() {
@@ -39,6 +45,8 @@ fn main() {
 ///
 /// Used to connect to an already running igneous-md server.
 pub struct Cli {
+    /// Path of the md file to view
+    pub path: String,
     /// Port the server is running on
     #[arg(short, long, default_value = "2323")]
     pub port: u16,

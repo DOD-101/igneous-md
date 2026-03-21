@@ -15,18 +15,14 @@ use std::{
 };
 use tokio::sync::broadcast;
 
-use crate::paths::Paths;
-
 #[cfg(feature = "generate_config")]
 pub mod generate;
 
 /// Struct containing all information relating to the config, including the css files.
 #[derive(Debug)]
 pub struct Config {
-    /// Path to the config
+    /// Where the config is located on disk
     config_dir: PathBuf,
-    /// Path to the dir, where the css files are
-    css_dir: PathBuf,
     /// List of css files within the [Config::css_dir]
     ///
     /// Paths all start with `/css/` followed by the name of the file.
@@ -41,13 +37,12 @@ impl Config {
     /// Attempt to create a new [Config]
     ///
     /// This may fail, since to set [Config::css_paths] we need to read from the Filesystem.
-    pub fn new(paths: &Paths) -> io::Result<Self> {
+    pub fn new(config_dir: PathBuf) -> io::Result<Self> {
         Ok(Self {
-            config_dir: paths.get_config_dir(),
-            css_dir: paths.get_css_dir(),
             css_paths: Arc::new(Mutex::new(crate::paths::read_css_dir(
-                &paths.get_css_dir(),
+                &config_dir.join("./css"),
             )?)),
+            config_dir,
             update_sender: broadcast::channel(1).0,
             watcher: None,
         })
@@ -63,19 +58,18 @@ impl Config {
         self.css_paths.lock().unwrap().len()
     }
 
-    /// Get [Self::css_dir]
-    ///
-    /// This will just be [Paths::get_css_dir] of the [Paths] passed to [Self::new]
-    #[allow(dead_code)]
-    pub fn get_css_dir(&self) -> &PathBuf {
-        &self.css_dir
+    /// Directory where the css files are located
+    pub fn css_dir(&self) -> PathBuf {
+        self.config_dir.join("./css")
     }
 
-    /// Get [Self::config_dir]
-    ///
-    /// This will just be [Paths::get_config_dir] of the [Paths] passed to [Self::new]
-    #[allow(dead_code)]
-    pub fn get_config_dir(&self) -> &PathBuf {
+    /// Directory where the css files for code highlighting are located
+    pub fn code_highlight_dir(&self) -> PathBuf {
+        self.config_dir.join("./css/hljs")
+    }
+
+    /// Get [field@Self::config_dir]
+    pub fn config_dir(&self) -> &PathBuf {
         &self.config_dir
     }
 
@@ -84,7 +78,7 @@ impl Config {
     /// After this [Self::update_sender] will start sending events.
     pub fn start_watching(&mut self) -> notify::Result<()> {
         let config_dir = self.config_dir.clone();
-        let css_dir = self.css_dir.clone();
+        let css_dir = self.css_dir();
         let css_paths = self.css_paths.clone();
 
         let sender = self.update_sender.clone();
@@ -128,7 +122,6 @@ impl Config {
 
         Self {
             config_dir: PathBuf::new(),
-            css_dir: PathBuf::new(),
             css_paths: Arc::new(Mutex::new(css_paths)),
             update_sender: broadcast::channel(1).0,
             watcher: None,

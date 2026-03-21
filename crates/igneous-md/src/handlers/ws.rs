@@ -16,13 +16,14 @@ use rocket::{
 use rocket_ws::{stream::DuplexStream, Channel, Message, WebSocket};
 use std::{
     fs, io,
-    sync::{Arc, Mutex},
+    path::PathBuf,
+    sync::{Arc, RwLock},
 };
 
 mod msg;
 use msg::{ClientMsg, ServerMsg};
 
-use crate::{client::Client, config::Config, export::export, paths::Paths};
+use crate::{client::Client, config::Config, export::export};
 
 /// Handles clients upgrading to Websocket
 ///
@@ -30,17 +31,15 @@ use crate::{client::Client, config::Config, export::export, paths::Paths};
 /// It will also now be able to request things from / communicate with the server via the Websocket.
 ///
 /// Changing the viewed file is possible via [ClientMsgType::Redirect]
-#[get("/ws?<update_rate>")]
+#[get("/ws?<update_rate>&<md_path>")]
 pub async fn upgrade_connection(
     ws: WebSocket,
-    paths: &State<Paths>,
-    config: &State<Arc<Mutex<Config>>>,
+    config: &State<Arc<RwLock<Config>>>,
     update_rate: Option<u64>,
+    md_path: String,
     mut shutdown: Shutdown,
 ) -> io::Result<Channel<'static>> {
-    let paths = paths.inner().clone();
-
-    let mut client = Client::new(&paths, config.inner().clone());
+    let mut client = Client::new(PathBuf::from(md_path), config.inner().clone());
 
     Ok(ws.channel(move |mut stream| {
         Box::pin(async move {
@@ -62,7 +61,7 @@ pub async fn upgrade_connection(
                         log::info!("Sending update");
                         if let Some(css) = client.current_css() {
                             let css = fs::read_to_string(
-                                paths.get_config_dir().join(
+                                client.config.read().unwrap().config_dir().join(
                                     css.strip_prefix("/").unwrap()));
 
                             let msg = match css {
@@ -87,7 +86,7 @@ pub async fn upgrade_connection(
                                     Message::Text(msg_string) => {
                                         if let Ok(client_msg) = serde_json::from_str::<ClientMsg>(&msg_string) {
 
-                                            let return_msg = handle_client_msg(client_msg, &mut client, &paths);
+                                            let return_msg = handle_client_msg(client_msg, &mut client);
 
                                             log::info!("Sending ws message: {:?}", return_msg);
 
@@ -125,13 +124,18 @@ pub async fn upgrade_connection(
 }
 
 /// [upgrade_connection()] uses this to handle the incoming messages from the client
-fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> ServerMsg {
+fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
     match msg {
         ClientMsg::ChangeCss { index, relative } => {
             client.change_current_css_index(index, relative);
 
             if let Some(css) = client.current_css() {
-                let current_css = paths.get_config_dir().join(css.strip_prefix("/").unwrap());
+                let current_css = client
+                    .config
+                    .read()
+                    .unwrap()
+                    .config_dir()
+                    .join(css.strip_prefix("/").unwrap());
 
                 let css = fs::read_to_string(current_css);
 
@@ -145,7 +149,11 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
             }
         }
         ClientMsg::ExportHtml => {
-            if let Err(e) = export(client.get_html(), paths.get_config_dir(), None) {
+            if let Err(e) = export(
+                client.get_html(),
+                client.config.read().unwrap().config_dir(),
+                None,
+            ) {
                 ServerMsg::Error { msg: e.to_string() }
             } else {
                 ServerMsg::Success
@@ -160,7 +168,7 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
             }
         }
         ClientMsg::RedirectDefault => {
-            client.set_md_path(paths.get_default_md());
+            client.reset_md_path_to_initial();
 
             match client.get_latest_html() {
                 Ok(html) => ServerMsg::HtmlUpdate { html },

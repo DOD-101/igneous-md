@@ -5,14 +5,14 @@ use kuchikiki::traits::*;
 use std::{
     io,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::SystemTime,
 };
 use tokio::sync::broadcast;
 
-use crate::{config::Config, convert::md_to_html, paths::Paths};
+use crate::{config::Config, convert::md_to_html};
 
-/// All data relating to a client connected via websocket.
+/// Struct representing a client connection to the server
 ///
 /// This Client is only dropped when the websocket is closed, which is most cases means the client
 /// has disconnected.
@@ -28,6 +28,10 @@ use crate::{config::Config, convert::md_to_html, paths::Paths};
 pub struct Client {
     /// Path to the`.md` on disk
     md_path: PathBuf,
+    /// First value [`Self::md_path`] was set to
+    ///
+    /// Needed to allow for [`crate::handlers::ws::msg::ClientMsg::RedirectDefault`]
+    initial_md_path: PathBuf,
     /// Last time the file was modified
     last_modified: SystemTime,
     /// The markdown from the file
@@ -35,7 +39,7 @@ pub struct Client {
     /// The html `<main>` element of the file
     html: String,
     /// [Config] shared between all clients
-    config: Arc<Mutex<Config>>,
+    pub config: Arc<RwLock<Config>>,
     /// Receiver of [notify::Event]s
     pub config_update_receiver: broadcast::Receiver<notify::Event>,
     /// The current position in [Config::css_paths]
@@ -57,10 +61,10 @@ pub enum MdChanged {
 
 impl Client {
     /// Attempt to create a new [Client]
-    pub fn new(paths: &Paths, config: Arc<Mutex<Config>>) -> Self {
+    pub fn new(md_path: PathBuf, config: Arc<RwLock<Config>>) -> Self {
         let (config_update_receiver, current_css_index);
         {
-            let config = config.lock().unwrap();
+            let config = config.read().unwrap();
 
             config_update_receiver = config.update_sender.subscribe();
             current_css_index = if config.css_paths_len() > 0 {
@@ -71,7 +75,8 @@ impl Client {
         }
 
         Self {
-            md_path: paths.get_default_md(),
+            initial_md_path: md_path.clone(),
+            md_path,
             md: String::new(),
             last_modified: SystemTime::UNIX_EPOCH,
             html: String::new(),
@@ -106,9 +111,14 @@ impl Client {
     // must actually call a function to get data to update the data. This should probably be
     // addressed in the future.
 
-    /// Set / Change [Self::md_path]
+    /// Set [Self::md_path]
     pub fn set_md_path(&mut self, md_path: PathBuf) {
         self.md_path = md_path;
+    }
+
+    /// Set [Self::md_path] back to [Self::initial_md_path]
+    pub fn reset_md_path_to_initial(&mut self) {
+        self.md_path = self.initial_md_path.clone();
     }
 
     /// Getter function for [Self::md_path]
@@ -134,7 +144,7 @@ impl Client {
     pub fn current_css(&self) -> Option<PathBuf> {
         self.current_css_index.and_then(|i| {
             self.config
-                .lock()
+                .read()
                 .expect("Failed to lock config. This should never happen.")
                 .get_css_paths_clone()
                 .get(i as usize)
@@ -182,7 +192,7 @@ impl Client {
         if let Some(i) = self.current_css_index {
             let raw_index = if relative { i as i16 + change } else { change };
 
-            let max_index = self.config.lock().unwrap().css_paths_len() as i16 - 1;
+            let max_index = self.config.read().unwrap().css_paths_len() as i16 - 1;
 
             let index = if max_index == 0 {
                 // since it is the only option
@@ -200,9 +210,9 @@ impl Client {
 
             debug_assert!(
                 self.current_css_index
-                    .is_some_and(|v| (v as usize) < self.config.lock().unwrap().css_paths_len()),
+                    .is_some_and(|v| (v as usize) < self.config.read().unwrap().css_paths_len()),
                 "current_css_index is invalid: max-index: {:?}; index: {:?}",
-                self.config.lock().unwrap().css_paths_len() - 1,
+                self.config.read().unwrap().css_paths_len() - 1,
                 self.current_css_index
             );
         }
@@ -228,12 +238,13 @@ mod test {
             }
 
             Self {
+                initial_md_path: PathBuf::new(),
                 md_path: PathBuf::new(),
                 md: String::new(),
                 last_modified: SystemTime::UNIX_EPOCH,
                 html: String::new(),
                 config_update_receiver,
-                config: Arc::new(Mutex::new(config)),
+                config: Arc::new(RwLock::new(config)),
                 current_css_index,
             }
         }

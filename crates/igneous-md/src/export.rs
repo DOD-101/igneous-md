@@ -1,5 +1,5 @@
 //! Just contains [export()].
-use std::{ffi::OsString, io, path::PathBuf};
+use std::{ffi::OsString, io, path::Path};
 
 /// Saves the given html string to disk
 ///
@@ -10,7 +10,7 @@ use std::{ffi::OsString, io, path::PathBuf};
 ///
 /// Alternatively, if `file_name` is given, it will be used as the name of the file to save to
 /// disk.
-pub fn export(html: String, dir: PathBuf, file_name: Option<OsString>) -> io::Result<()> {
+pub fn export(html: String, dir: &Path, file_name: Option<OsString>) -> io::Result<()> {
     let path = match file_name {
         Some(n) => dir.join(n),
         None => dir.join(format!(

@@ -75,7 +75,7 @@ impl<'a> Viewer<'a> {
         // view.load_uri(&format!("http://{}", addr));
         view.load_html(
             include_str!(concat!(env!("OUT_DIR"), "/index.html")),
-            Some("viewer"),
+            Some(addr),
         );
     }
 }
@@ -86,15 +86,23 @@ pub struct Address<'a> {
     port: u16,
     update_rate: u64,
     css: Option<&'a str>,
+    path: &'a str,
 }
 
 impl<'a> Address<'a> {
-    pub fn new(host: &'a str, port: u16, update_rate: u64, css: Option<&'a str>) -> Self {
+    pub fn new(
+        host: &'a str,
+        port: u16,
+        update_rate: u64,
+        css: Option<&'a str>,
+        path: &'a str,
+    ) -> Self {
         Self {
             host,
             port,
             update_rate,
             css,
+            path,
         }
     }
 }
@@ -103,10 +111,11 @@ impl Display for Address<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}:{}/?update_rate={}{}",
+            "{}:{}/?update_rate={}&path={}{}",
             self.host,
             self.port,
             self.update_rate,
+            self.path,
             self.css.map(|s| format!("&css={}", s)).unwrap_or_default(),
         )
     }
