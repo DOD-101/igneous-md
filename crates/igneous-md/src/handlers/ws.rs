@@ -22,12 +22,7 @@ use std::{
 mod msg;
 use msg::{ClientMsg, ServerMsg};
 
-use crate::{
-    client::Client,
-    config::Config,
-    export::export,
-    paths::{Paths, CONFIG_PATH},
-};
+use crate::{client::Client, config::Config, export::export, paths::Paths};
 
 /// Handles clients upgrading to Websocket
 ///
@@ -67,7 +62,7 @@ pub async fn upgrade_connection(
                         log::info!("Sending update");
                         if let Some(css) = client.current_css() {
                             let css = fs::read_to_string(
-                                CONFIG_PATH.join(
+                                paths.get_config_dir().join(
                                     css.strip_prefix("/").unwrap()));
 
                             let msg = match css {
@@ -136,7 +131,7 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
             client.change_current_css_index(index, relative);
 
             if let Some(css) = client.current_css() {
-                let current_css = CONFIG_PATH.join(css.strip_prefix("/").unwrap());
+                let current_css = paths.get_config_dir().join(css.strip_prefix("/").unwrap());
 
                 let css = fs::read_to_string(current_css);
 
@@ -150,7 +145,7 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client, paths: &Paths) -> Serv
             }
         }
         ClientMsg::ExportHtml => {
-            if let Err(e) = export(client.get_html(), None) {
+            if let Err(e) = export(client.get_html(), paths.get_config_dir(), None) {
                 ServerMsg::Error { msg: e.to_string() }
             } else {
                 ServerMsg::Success

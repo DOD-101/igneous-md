@@ -11,7 +11,11 @@ use std::{
 };
 
 /// Default config dir for the application
-pub static CONFIG_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+///
+/// > [WARNING]
+/// > Do not use this to access the config, this is the default value, which may have been
+/// > overridden by the user. See [`PATHS`] for that.
+pub static DEFAULT_CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     if cfg!(debug_assertions) {
         return PathBuf::from("test");
     }
@@ -20,9 +24,6 @@ pub static CONFIG_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
         .expect("Couldn't find the home dir!")
         .join("igneous-md/")
 });
-
-/// Default css dir for the application
-pub static CSS_PATH: LazyLock<PathBuf> = LazyLock::new(|| CONFIG_PATH.join("css/"));
 
 /// Will attempt to read the given `css_dir` and organize the output
 ///
@@ -65,12 +66,12 @@ pub struct Paths {
     ///
     /// Currently this isn't very important, since we primarily care about the [Self::css_dir]
     config_dir: PathBuf,
-    /// The dir containing the css files
-    css_dir: PathBuf,
     /// The first css file every client receives.
     ///
     /// This is not an actual path on disk, but rather the API path for the css file
-    default_css: PathBuf,
+    ///
+    /// If this is none the user didn't specify one
+    default_css: Option<PathBuf>,
     /// The default md path sent to new clients
     default_md: PathBuf,
 }
@@ -80,17 +81,12 @@ impl Paths {
     ///
     /// This can fail, only if no `default_css` is supplied, since it needs to read css files from
     /// disk.
-    pub fn new(
-        default_md: PathBuf,
-        css_dir: PathBuf,
-        default_css: Option<PathBuf>,
-    ) -> io::Result<Self> {
-        Ok(Self {
+    pub fn new(default_md: PathBuf, config_dir: PathBuf, default_css: Option<PathBuf>) -> Self {
+        Self {
             default_md,
-            config_dir: CONFIG_PATH.clone(),
-            default_css: default_css.unwrap_or(Self::determine_default_css(&css_dir)?),
-            css_dir,
-        })
+            config_dir,
+            default_css,
+        }
     }
     /// Getter function for [Self::default_md]
     pub fn get_default_md(&self) -> PathBuf {
@@ -102,29 +98,13 @@ impl Paths {
         self.config_dir.clone()
     }
 
-    /// Getter function for [Self::css_dir]
+    /// Get the dir containing the css files
     pub fn get_css_dir(&self) -> PathBuf {
-        self.css_dir.clone()
+        self.config_dir.join("./css")
     }
 
     /// Getter function for [Self::default_css]
-    pub fn get_default_css(&self) -> PathBuf {
+    pub fn get_default_css(&self) -> Option<PathBuf> {
         self.default_css.clone()
-    }
-
-    /// Used by [Self::new] to set [Self::default_css] by reading `css_dir`
-    ///
-    /// If there are no css files it will return an empty [PathBuf]
-    fn determine_default_css(css_dir: &Path) -> io::Result<PathBuf> {
-        let all_css = read_css_dir(css_dir)?;
-
-        let default_css = all_css.first().map_or(PathBuf::new(), |p| p.to_path_buf());
-
-        log::info!(
-            "Automatically set default_css to: {}",
-            default_css.to_string_lossy()
-        );
-
-        Ok(default_css)
     }
 }

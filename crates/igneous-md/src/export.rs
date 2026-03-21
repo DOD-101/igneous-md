@@ -1,24 +1,19 @@
 //! Just contains [export()].
-use std::{io, path::PathBuf};
+use std::{ffi::OsString, io, path::PathBuf};
 
-use crate::paths::CONFIG_PATH;
 /// Saves the given html string to disk
 ///
-/// The default location is in the users config dir, with the name:
-/// `html-export-<year>-<month>-<day>-<hour>-<minute>-<second>.html`
+/// The default file name is: `html-export-<year>-<month>-<day>-<hour>-<minute>-<second>.html`
 ///
 /// It is possible that one file overwrites another if the user happens to press the export button
 /// twice in one second, but this should never happen in normal use.
 ///
-/// Alternatively, if `other_path` is given, it will be used as the path to save the file to.
-pub fn export(html: String, other_path: Option<PathBuf>) -> io::Result<()> {
-    let path = match other_path {
-        Some(path) if path.is_dir() => path.join(format!(
-            "html-export-{}.html",
-            chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
-        )),
-        Some(path) => path,
-        None => CONFIG_PATH.join(format!(
+/// Alternatively, if `file_name` is given, it will be used as the name of the file to save to
+/// disk.
+pub fn export(html: String, dir: PathBuf, file_name: Option<OsString>) -> io::Result<()> {
+    let path = match file_name {
+        Some(n) => dir.join(n),
+        None => dir.join(format!(
             "html-export-{}.html",
             chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
         )),

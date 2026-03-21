@@ -14,7 +14,6 @@
 extern crate rocket;
 
 use clap::{CommandFactory, Parser};
-use rocket::fs::FileServer;
 use simple_logger::SimpleLogger;
 use std::{
     fs,
@@ -35,7 +34,6 @@ use cli::{Action, Cli};
 use errors::Error;
 use handlers::*;
 use paths::Paths;
-use paths::CSS_PATH;
 
 #[cfg(feature = "viewer")]
 use {
@@ -59,27 +57,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Action::Convert {
             path,
-            export_path,
             css,
+            export_name,
         } => {
-            let html = convert::md_to_html(&fs::read_to_string(path).map_err(Error::InvalidInput)?);
+            let paths = Paths::new(path, cli.config, css);
+
+            let html = convert::md_to_html(
+                &fs::read_to_string(paths.get_default_md()).map_err(Error::InvalidInput)?,
+            );
 
             Ok(export::export(
-                convert::initial_html(&css.clone().unwrap_or_default().to_string_lossy(), &html),
-                export_path,
+                convert::initial_html(
+                    &paths
+                        .get_default_css()
+                        .clone()
+                        .unwrap_or_default()
+                        .to_string_lossy(),
+                    &html,
+                ),
+                paths.get_config_dir(),
+                export_name,
             )
             .map_err(Error::ExportFailed)?)
         }
         #[cfg(feature = "generate_config")]
         Action::GenerateConfig { overwrite } => {
-            if CSS_PATH.exists() && !overwrite {
+            // We don't actually care about the default md file here
+            let paths = Paths::new(PathBuf::new(), cli.config, None);
+
+            if paths.get_css_dir().exists() && !overwrite {
                 return Err(Box::new(Error::ConfigDirExists) as Box<dyn std::error::Error>);
             }
 
-            fs::create_dir_all(CSS_PATH.join("hljs"))
+            fs::create_dir_all(paths.get_css_dir().join("hljs"))
                 .map_err(|e| Error::ConfigGenFailed(Box::new(e) as Box<dyn std::error::Error>))?;
 
-            config::generate::generate_config_files(&CSS_PATH).await?;
+            config::generate::generate_config_files(&paths.get_css_dir()).await?;
 
             Ok(())
         }
@@ -96,20 +109,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Action::View {
             path,
             css,
-            css_dir,
             port,
             update_rate,
             #[cfg(feature = "viewer")]
             no_viewer,
         } => {
+            let paths = Paths::new(path, cli.config, css.map(|p| PathBuf::from("/css").join(p)));
+
             // TODO: In the future it might be nice to check if the dir contains no css, rather than just
             // checking if it exists. However as it stands currently users can avoid the prompt, by
             // creating the dirs.
 
             // Check if the config exists
-            if !CSS_PATH.exists() {
+            if !paths.get_css_dir().exists() {
                 // Always at least create the dir
-                fs::create_dir_all(CSS_PATH.join("hljs"))
+                fs::create_dir_all(paths.get_css_dir().join("hljs"))
                     .map_err(|e| Error::ConfigGenFailed(Box::new(e)))?;
 
                 // If compiled with generate_config, generate the config
@@ -131,7 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .next()
                         .is_some_and(|c| c == 'y')
                     {
-                        config::generate::generate_config_files(&CSS_PATH)
+                        config::generate::generate_config_files(&paths.get_css_dir())
                             .await
                             .map_err(Error::ConfigGenFailed)?;
                     }
@@ -140,19 +154,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if let Err(e) = fs::write("/tmp/ingeous-md", port.to_string()) {
                 log::error!("Failed to write port to tmp file: {e}")
-            };
-
-            let paths = match Paths::new(
-                path,
-                css_dir.unwrap_or(CSS_PATH.to_path_buf()),
-                css.map(|p| PathBuf::from("/css").join(p)),
-            ) {
-                Ok(p) => p,
-                Err(e) => {
-                    log::error!("Failed to create `Paths` Struct: {}", e);
-
-                    return Err(Box::new(e));
-                }
             };
 
             let config = match config::Config::new(&paths) {

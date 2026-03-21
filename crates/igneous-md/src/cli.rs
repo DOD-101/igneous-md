@@ -1,7 +1,9 @@
 //! Module containing all CLI related functionality
 use clap::{Parser, Subcommand};
 use rocket::log::LogLevel as RocketLogLevel;
-use std::{path::PathBuf, result::Result, str::FromStr};
+use std::{ffi::OsString, path::PathBuf, result::Result, str::FromStr};
+
+use crate::paths::DEFAULT_CONFIG_DIR;
 
 /// Top Level Struct of the CLI
 /// For more information see [clap documentation](https://docs.rs/clap/latest/clap/index.html)
@@ -17,6 +19,9 @@ pub struct Cli {
     /// Log Level, aka. how verbose the application will be.
     #[arg(short, long, default_value = if cfg!(debug_assertions) {"INFO"} else {"WARN"})]
     pub log_level: UnifiedLevel,
+    /// Change path to the config
+    #[arg(long, default_value = DEFAULT_CONFIG_DIR.as_os_str(), value_name = "PATH")]
+    pub config: PathBuf,
 }
 
 /// Actions other than launching the server to view markdown
@@ -31,9 +36,6 @@ pub enum Action {
         /// Path to stylesheet within css dir
         #[arg(short, long, value_name = "PATH")]
         css: Option<PathBuf>,
-        /// Path to alternate css dir
-        #[arg(long, value_name = "PATH")]
-        css_dir: Option<PathBuf>,
         /// Start server without viewer
         #[arg(long, default_value = "false")]
         #[cfg(feature = "viewer")]
@@ -50,15 +52,17 @@ pub enum Action {
         update_rate: u64,
     },
     /// Convert a md file to html and save it to disk
+    ///
+    /// The file will be saved to the specified config dir.
     Convert {
         /// The file to convert
         path: PathBuf,
         /// Path to set the css stylesheet to
         #[arg(short, long, value_name = "PATH")]
         css: Option<PathBuf>,
-        /// Path to save the html to
-        #[arg(short, long, value_name = "PATH")]
-        export_path: Option<PathBuf>,
+        /// The file name of the file to save to disk
+        #[arg(short, long, value_name = "FILE")]
+        export_name: Option<OsString>,
     },
     /// Generate shell completions
     Completions {
