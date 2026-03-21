@@ -114,7 +114,18 @@ impl Config {
 
 #[cfg(test)]
 impl Config {
-    pub fn new_testing(css_paths: Vec<PathBuf>) -> Self {
+    /// Creates a new Config for testing purposes
+    ///
+    /// `stylesheets` specifies the amount of css style sheets to create, in the format:
+    ///
+    /// `styleN.css`: where N is the number of the style sheet.
+    pub fn new_testing(stylesheets: usize) -> Self {
+        let mut css_paths = Vec::with_capacity(stylesheets);
+
+        for n in 1..=stylesheets {
+            css_paths.push(PathBuf::from(format!("style{n}.css")));
+        }
+
         Self {
             config_dir: PathBuf::new(),
             css_dir: PathBuf::new(),

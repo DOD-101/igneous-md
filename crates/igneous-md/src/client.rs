@@ -170,7 +170,7 @@ impl Client {
         Ok(Some(self.html.clone()))
     }
 
-    // BUG: Potentially I have not tested all the invariants around if there are no css paths,
+    // BUG: I have not tested all the invariants around if there are no css paths,
     // since in the near future I wish to change how interactions with css work in general.
 
     /// Change the current css
@@ -214,11 +214,11 @@ mod test {
     use super::*;
 
     impl Client {
-        pub fn new_testing(config: Arc<Mutex<Config>>) -> Self {
+        pub fn new_testing(config_stylesheets: usize) -> Self {
+            let config = Config::new_testing(config_stylesheets);
+
             let (config_update_receiver, current_css_index);
             {
-                let config = config.lock().unwrap();
-
                 config_update_receiver = config.update_sender.subscribe();
                 current_css_index = if config.css_paths_len() > 0 {
                     Some(0)
@@ -233,7 +233,7 @@ mod test {
                 last_modified: SystemTime::UNIX_EPOCH,
                 html: String::new(),
                 config_update_receiver,
-                config,
+                config: Arc::new(Mutex::new(config)),
                 current_css_index,
             }
         }
@@ -241,11 +241,7 @@ mod test {
 
     #[test]
     fn next_css() {
-        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
-            PathBuf::from("style1.css"),
-            PathBuf::from("style2.css"),
-            PathBuf::from("style3.css"),
-        ]))));
+        let mut client = Client::new_testing(3);
 
         client.change_current_css_index(1, true);
         assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
@@ -261,11 +257,7 @@ mod test {
 
     #[test]
     fn previous_css() {
-        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
-            PathBuf::from("style1.css"),
-            PathBuf::from("style2.css"),
-            PathBuf::from("style3.css"),
-        ]))));
+        let mut client = Client::new_testing(3);
 
         client.change_current_css_index(-1, true);
         assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
@@ -281,11 +273,7 @@ mod test {
 
     #[test]
     fn next_previous_mixed_1() {
-        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
-            PathBuf::from("style1.css"),
-            PathBuf::from("style2.css"),
-            PathBuf::from("style3.css"),
-        ]))));
+        let mut client = Client::new_testing(3);
 
         client.change_current_css_index(-1, true);
         assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
@@ -308,9 +296,7 @@ mod test {
 
     #[test]
     fn next_previous_on_single() {
-        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![
-            PathBuf::from("style1.css"),
-        ]))));
+        let mut client = Client::new_testing(1);
 
         client.change_current_css_index(-1, true);
         assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
@@ -327,7 +313,7 @@ mod test {
 
     #[test]
     fn next_previous_on_empty() {
-        let mut client = Client::new_testing(Arc::new(Mutex::new(Config::new_testing(vec![]))));
+        let mut client = Client::new_testing(0);
 
         client.change_current_css_index(-1, true);
         assert_eq!(client.current_css(), None);
