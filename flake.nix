@@ -51,8 +51,6 @@
           root = ./.;
           fileset = lib.fileset.unions [
             (lib.fileset.maybeMissing ./crates)
-            (lib.fileset.fileFilter (file: file.hasExt == "js") root)
-            (lib.fileset.maybeMissing ./crates/igneous-md/src)
             (craneLib.fileset.commonCargoSources root)
           ];
         };
@@ -100,6 +98,7 @@
               ./Cargo.toml
               ./Cargo.lock
               (craneLib.fileset.commonCargoSources ./crates/igneous-md-viewer)
+              (lib.fileset.maybeMissing ./crates/igneous-md-viewer/src)
               (lib.fileset.maybeMissing ./assets)
               crate
             ];
