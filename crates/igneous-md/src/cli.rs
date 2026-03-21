@@ -1,7 +1,6 @@
 //! Module containing all CLI related functionality
 use clap::{Parser, Subcommand};
-use rocket::log::LogLevel as RocketLogLevel;
-use std::{ffi::OsString, path::PathBuf, result::Result, str::FromStr};
+use std::{ffi::OsString, path::PathBuf};
 
 use crate::paths::DEFAULT_CONFIG_DIR;
 
@@ -18,7 +17,7 @@ pub struct Cli {
     pub command: Action,
     /// Log Level, aka. how verbose the application will be.
     #[arg(short, long, default_value = if cfg!(debug_assertions) {"INFO"} else {"WARN"})]
-    pub log_level: UnifiedLevel,
+    pub log_level: log::Level,
     /// Change path to the config
     #[arg(long, default_value = DEFAULT_CONFIG_DIR.as_os_str(), value_name = "PATH")]
     pub config: PathBuf,
@@ -76,47 +75,4 @@ pub enum Action {
         #[arg(short, long)]
         overwrite: bool,
     },
-}
-
-/// Wrapper around [log::LevelFilter] to allow conversion to [RocketLogLevel]
-#[derive(Clone, Debug, Copy)]
-pub struct UnifiedLevel(log::LevelFilter);
-
-impl From<RocketLogLevel> for UnifiedLevel {
-    fn from(value: RocketLogLevel) -> Self {
-        match value {
-            RocketLogLevel::Off => Self(log::LevelFilter::Off),
-            RocketLogLevel::Critical => Self(log::LevelFilter::Error),
-            RocketLogLevel::Normal => Self(log::LevelFilter::Info),
-            RocketLogLevel::Debug => Self(log::LevelFilter::Debug),
-        }
-    }
-}
-
-impl From<UnifiedLevel> for RocketLogLevel {
-    fn from(value: UnifiedLevel) -> Self {
-        match value {
-            UnifiedLevel(log::LevelFilter::Off) => Self::Off,
-            UnifiedLevel(log::LevelFilter::Error) => Self::Critical,
-            UnifiedLevel(log::LevelFilter::Warn) | UnifiedLevel(log::LevelFilter::Info) => {
-                Self::Normal
-            }
-            UnifiedLevel(log::LevelFilter::Debug) | UnifiedLevel(log::LevelFilter::Trace) => {
-                Self::Debug
-            }
-        }
-    }
-}
-
-impl From<UnifiedLevel> for log::LevelFilter {
-    fn from(value: UnifiedLevel) -> Self {
-        value.0
-    }
-}
-
-impl FromStr for UnifiedLevel {
-    type Err = log::ParseLevelError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(UnifiedLevel(log::LevelFilter::from_str(s)?))
-    }
 }

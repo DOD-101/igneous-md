@@ -7,6 +7,10 @@
 - Ability to adjust update rate
 - Move to gtk4 and webkit6
 
+### Changed
+
+- Remove rocket and do all communication via websockets
+
 ## 0.3.0 - 2025-02-16
 
 ### Added

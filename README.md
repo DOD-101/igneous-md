@@ -190,15 +190,17 @@ Yes. It's simpler than it sounds.
 Since igneous-md works by using a server in the background and then communicates with the built-in viewer, as well as the browser,
 using https and websockets anyone could use this to write their own viewer.
 
-The benefits of this being you would receive all of the hot-reloading and conversion from md to html for free,
-while having full freedom to implement your viewer however they would like.
+The benefits of this being you receive all of the hot-reloading and conversion from md to html for free,
+while having full freedom to implement your viewer however they you like.
 
 The only real limitation on this is what the websocket json-protocol is written to support. (PRs welcome)
 
-This aspect of igneous-md is still experimental, but if you already want to get started check out [`./crates/igneous-md/src/handlers/ws.rs`](./crates/igneous-md/src/handlers/ws.rs)
+This aspect of igneous-md is still experimental, but if you already want to get started check out [`./crates/igneous-md/src/ws/msg.rs`](./crates/igneous-md/src/ws/msg.rs)
 and have a look at what is possible right now.
 
 If you want to only use igneous-md for this be sure to disable the `viewer` cargo feature.
+
+<!-- TODO: Add a section on writing your own viewer -->
 
 ## Attribution
 

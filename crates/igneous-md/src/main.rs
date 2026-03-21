@@ -10,9 +10,6 @@
 //! For more information see the usage docs.
 //!
 
-#[macro_use]
-extern crate rocket;
-
 use clap::{CommandFactory, Parser};
 use simple_logger::SimpleLogger;
 use std::{
@@ -20,6 +17,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
 };
+use tokio::net::TcpListener;
 
 mod cli;
 mod client;
@@ -27,12 +25,12 @@ mod config;
 mod convert;
 mod errors;
 mod export;
-mod handlers;
 mod paths;
+mod ws;
 
 use cli::{Action, Cli};
 use errors::Error;
-use handlers::*;
+use ws::upgrade_connection;
 
 #[cfg(feature = "viewer")]
 use {
@@ -43,12 +41,12 @@ use {
 #[cfg(feature = "generate_config")]
 use std::{io, io::Write};
 
-#[rocket::main]
+#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     SimpleLogger::new()
-        .with_level(cli.log_level.into())
+        .with_level(cli.log_level.to_level_filter())
         .init()
         .expect("Failed to init Logger.");
 
@@ -181,17 +179,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
 
-            rocket::build()
-                .configure(rocket::Config {
-                    port,
-                    log_level: cli.log_level.into(),
-                    ..rocket::Config::default()
-                })
-                .manage(Arc::new(RwLock::new(config)))
-                .mount("/", routes![upgrade_connection])
-                .register("/", catchers![not_found, internal_error])
-                .launch()
-                .await?;
+            let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
+
+            let config = Arc::new(RwLock::new(config));
+
+            while let Ok((stream, other)) = listener.accept().await {
+                log::info!("{}", other);
+                tokio::spawn(upgrade_connection(stream, Arc::clone(&config)));
+            }
 
             Ok(())
         }

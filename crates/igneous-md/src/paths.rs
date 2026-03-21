@@ -1,7 +1,4 @@
 //! External paths and related functionality
-//!
-//! The [Paths] struct is State managed by the [rocket] server, since it is needed to create
-//! new [crate::client::Client]s.
 use dirs::config_dir;
 use itertools::Itertools;
 use std::{
@@ -12,9 +9,10 @@ use std::{
 
 /// Default config dir for the application
 ///
-/// > [WARNING]
-/// > Do not use this to access the config, this is the default value, which may have been
-/// > overridden by the user. See [`PATHS`] for that.
+/// <div class="warning">
+/// Do not use this to access the config, this is the default value, which may have been
+/// overridden by the user.
+/// </div>
 pub static DEFAULT_CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     if cfg!(debug_assertions) {
         return PathBuf::from("test");

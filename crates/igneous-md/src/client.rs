@@ -23,14 +23,14 @@ use crate::{config::Config, convert::md_to_html};
 /// The Client also contains an [`Arc<Config>`] so that it can access the shared config state of the
 /// application.
 ///
-/// See also: [crate::handlers::upgrade_connection()]
+/// See also: [crate::ws::upgrade_connection()]
 #[derive(Debug)]
 pub struct Client {
     /// Path to the`.md` on disk
     md_path: PathBuf,
     /// First value [`Self::md_path`] was set to
     ///
-    /// Needed to allow for [`crate::handlers::ws::msg::ClientMsg::RedirectDefault`]
+    /// Needed to allow for [`crate::ws::msg::ClientMsg::RedirectDefault`]
     initial_md_path: PathBuf,
     /// Last time the file was modified
     last_modified: SystemTime,

@@ -1,3 +1,5 @@
+//! Messages sent by clients to the server and vice versa
+
 // TODO: https://docs.rs/ts-rs/latest/ts_rs/
 use std::path::PathBuf;
 
