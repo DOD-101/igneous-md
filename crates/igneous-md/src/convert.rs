@@ -283,7 +283,7 @@ fn post_process_html(html: String) -> String {
 /// Returns the initial html, for when a client connects for the first time
 ///
 /// This is mainly used to return a valid HTML document and load the required JS files.
-pub fn initial_html(css: &str, body: &str) -> String {
+pub fn initial_html(_css: &str, body: &str) -> String {
     // HACK: Rework this function
     body.to_string()
 }
