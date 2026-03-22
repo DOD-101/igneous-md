@@ -4,9 +4,9 @@
     <meta charset="utf-8"/>
     <title>Igneous-md</title>
     <script>{{highlightjs}}</script>
-    <script defer>{{mathjaxjs}}</script>
     <style id="md-style"></style>
     <script defer>{{mainjs}}</script>
+    <script defer>{{mathjaxjs}}</script>
 </head>
 <body class="markdown-body" id="body">
 <main>

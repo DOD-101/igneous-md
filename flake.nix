@@ -55,6 +55,37 @@
           ];
         };
 
+        parseVendorEnv =
+          file:
+          let
+            content = builtins.readFile file;
+            lines = lib.splitString "\n" content;
+            nonEmpty = builtins.filter (l: l != "" && !(lib.hasPrefix "#" l)) lines;
+            pairs = map (
+              l:
+              let
+                parts = lib.splitString "=" l;
+              in
+              {
+                name = builtins.elemAt parts 0;
+                value = builtins.elemAt parts 1;
+              }
+            ) nonEmpty;
+          in
+          builtins.listToAttrs pairs;
+
+        vendorDeps = parseVendorEnv ./vendor.env;
+
+        vendoredHighlightJs = pkgs.fetchurl {
+          url = vendorDeps.HIGHLIGHT_JS_URL;
+          hash = vendorDeps.HIGHLIGHT_JS_HASH;
+        };
+
+        vendoredMathjaxJs = pkgs.fetchurl {
+          url = vendorDeps.MATHJAX_URL;
+          hash = vendorDeps.MATHJAX_HASH;
+        };
+
         commonArgs = {
           inherit src;
           strictDeps = true;
@@ -81,6 +112,12 @@
             cargo-all-features
           ];
 
+          IGNEOUS_VENDOR_ONLY = "1";
+
+          postPatch = ''
+            cp ${vendoredHighlightJs} crates/igneous-md-viewer/src/highlight.min.js
+            cp ${vendoredMathjaxJs} crates/igneous-md-viewer/src/tex-mml-svg.js
+          '';
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -97,6 +134,7 @@
             fileset = lib.fileset.unions [
               ./Cargo.toml
               ./Cargo.lock
+              ./vendor.env
               (craneLib.fileset.commonCargoSources ./crates/igneous-md-viewer)
               (lib.fileset.maybeMissing ./crates/igneous-md-viewer/src)
               (lib.fileset.maybeMissing ./assets)
@@ -209,6 +247,7 @@
           packages = with pkgs; [
             prek
             typos-lsp
+            curl
           ];
 
           shellHook = ''

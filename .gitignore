@@ -2,3 +2,7 @@
 /ignore
 .direnv
 /test
+
+# Vendored JS dependencies (used when IGNEOUS_VENDOR_ONLY is set)
+crates/igneous-md-viewer/src/highlight.min.js
+crates/igneous-md-viewer/src/tex-mml-svg.js
