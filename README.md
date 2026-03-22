@@ -70,7 +70,7 @@ and then
 ```
 
 > [!IMPORTANT]
-> This will build the project from source (see build dependencies)
+> This will build the project from source
 
 ### Via Cargo
 
@@ -88,8 +88,9 @@ You must also install `webkit-gtk 2.3x+`.
 2. Install the following build dependencies:
 
     - rust 1.89+
-    - gtk4
-    - webkit-gtk 2.3x+ ( also a runtime dependency)
+    - gtk4 (also a runtime dependency)
+    - webkit-gtk 2.3x+ (also a runtime dependency)
+    - esbuild
 
     #### Arch Linux
 
