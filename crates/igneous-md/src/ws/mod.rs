@@ -11,7 +11,7 @@ pub mod msg;
 
 use futures_util::{SinkExt, StreamExt};
 use std::{
-    fs, io,
+    io,
     path::PathBuf,
     sync::{Arc, RwLock},
 };
@@ -53,17 +53,7 @@ pub async fn upgrade_connection(tcp: TcpStream, config: Arc<RwLock<Config>>) -> 
             _ = client.config_update_receiver.recv() => {
                 log::info!("Sending config update");
                 if let Some(css) = client.current_css() {
-                    let css = fs::read_to_string(
-                        client.config.read().unwrap().config_dir().join(
-                            css.strip_prefix("/").unwrap()));
-
-                    let msg = match css {
-                        Ok(css) => ServerMsg::CssUpdate { css },
-                        Err(e) => {
-                            let err = format!("Failed to send updated css after config update: {e}");
-                            ServerMsg::Error { msg: err }
-                        }
-                    };
+                    let msg = ServerMsg::CssUpdate { css };
 
                     if let Ok(text) = serde_json::to_string(&msg) {
                         let _ = ws_write.send(WsMessage::Text(text.into())).await;
@@ -115,18 +105,7 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
             client.change_current_css_index(index, relative);
 
             if let Some(css) = client.current_css() {
-                let current_css = client
-                    .config
-                    .read()
-                    .unwrap()
-                    .config_dir()
-                    .join(css.strip_prefix("/").unwrap());
-
-                let css = fs::read_to_string(current_css);
-
-                if let Ok(css) = css {
-                    return ServerMsg::CssUpdate { css };
-                }
+                return ServerMsg::CssUpdate { css };
             }
 
             ServerMsg::Error {

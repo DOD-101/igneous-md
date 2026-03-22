@@ -18,11 +18,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 ## To-do
 
-- [ ] Optimize performance
-
-    - [ ] Fix slow shutdown times
-
-- [ ] Write tests with hyperfine
+- [ ] Write e2e tests (and benchmarks with hyperfine?)
 
 - [ ] Create packages
 
@@ -35,6 +31,10 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 - [ ] Fix bug relating to multi line GFM notes
 
 - [x] Add github theme closer to github itself (limit width and center content)
+
+- [x] Optimize performance
+
+    - [x] Fix slow shutdown times
 
 ## Installation
 

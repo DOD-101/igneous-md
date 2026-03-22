@@ -42,9 +42,9 @@ pub struct Client {
     pub config: Arc<RwLock<Config>>,
     /// Receiver of [notify::Event]s
     pub config_update_receiver: broadcast::Receiver<notify::Event>,
-    /// The current position in [Config::css_paths]
+    /// The current position in [Config::css_entries]
     ///
-    /// If this is [None] then there are no css paths available.
+    /// If this is [None] then there are no css entries available.
     current_css_index: Option<u16>,
 }
 
@@ -67,7 +67,7 @@ impl Client {
             let config = config.read().unwrap();
 
             config_update_receiver = config.update_sender.subscribe();
-            current_css_index = if config.css_paths_len() > 0 {
+            current_css_index = if config.css_entries_len() > 0 {
                 Some(0)
             } else {
                 None
@@ -140,15 +140,15 @@ impl Client {
             .unwrap_or(self.html.clone()))
     }
 
-    /// Get the current css file from [Self::config.css_paths] without changing the index
-    pub fn current_css(&self) -> Option<PathBuf> {
+    /// Get the current css content from [Self::config.css_entries] without changing the index
+    pub fn current_css(&self) -> Option<String> {
         self.current_css_index.and_then(|i| {
             self.config
                 .read()
                 .expect("Failed to lock config. This should never happen.")
-                .get_css_paths_clone()
+                .get_css_entries_clone()
                 .get(i as usize)
-                .cloned()
+                .map(|entry| entry.content.clone())
         })
     }
 
@@ -180,9 +180,6 @@ impl Client {
         Ok(Some(self.html.clone()))
     }
 
-    // BUG: I have not tested all the invariants around if there are no css paths,
-    // since in the near future I wish to change how interactions with css work in general.
-
     /// Change the current css
     ///
     /// Makes sure the value is always valid
@@ -192,7 +189,7 @@ impl Client {
         if let Some(i) = self.current_css_index {
             let raw_index = if relative { i as i16 + change } else { change };
 
-            let max_index = self.config.read().unwrap().css_paths_len() as i16 - 1;
+            let max_index = self.config.read().unwrap().css_entries_len() as i16 - 1;
 
             let index = if max_index == 0 {
                 // since it is the only option
@@ -210,9 +207,9 @@ impl Client {
 
             debug_assert!(
                 self.current_css_index
-                    .is_some_and(|v| (v as usize) < self.config.read().unwrap().css_paths_len()),
+                    .is_some_and(|v| (v as usize) < self.config.read().unwrap().css_entries_len()),
                 "current_css_index is invalid: max-index: {:?}; index: {:?}",
-                self.config.read().unwrap().css_paths_len() - 1,
+                self.config.read().unwrap().css_entries_len() - 1,
                 self.current_css_index
             );
         }
@@ -230,7 +227,7 @@ mod test {
             let (config_update_receiver, current_css_index);
             {
                 config_update_receiver = config.update_sender.subscribe();
-                current_css_index = if config.css_paths_len() > 0 {
+                current_css_index = if config.css_entries_len() > 0 {
                     Some(0)
                 } else {
                     None
@@ -255,15 +252,15 @@ mod test {
         let mut client = Client::new_testing(3);
 
         client.change_current_css_index(1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.current_css(), Some("/* style2.css */".to_string()));
         client.change_current_css_index(1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.current_css(), Some("/* style3.css */".to_string()));
         client.change_current_css_index(1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
         client.change_current_css_index(1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.current_css(), Some("/* style2.css */".to_string()));
         client.change_current_css_index(1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.current_css(), Some("/* style3.css */".to_string()));
     }
 
     #[test]
@@ -271,15 +268,15 @@ mod test {
         let mut client = Client::new_testing(3);
 
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.current_css(), Some("/* style3.css */".to_string()));
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.current_css(), Some("/* style2.css */".to_string()));
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.current_css(), Some("/* style3.css */".to_string()));
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.current_css(), Some("/* style2.css */".to_string()));
     }
 
     #[test]
@@ -287,22 +284,22 @@ mod test {
         let mut client = Client::new_testing(3);
 
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.current_css(), Some("/* style3.css */".to_string()));
 
         client.change_current_css_index(2, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.current_css(), Some("/* style2.css */".to_string()));
 
         client.change_current_css_index(-2, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style3.css")));
+        assert_eq!(client.current_css(), Some("/* style3.css */".to_string()));
 
         client.change_current_css_index(0, false);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
 
         client.change_current_css_index(9, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
 
         client.change_current_css_index(10, false);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style2.css")));
+        assert_eq!(client.current_css(), Some("/* style2.css */".to_string()));
     }
 
     #[test]
@@ -310,16 +307,16 @@ mod test {
         let mut client = Client::new_testing(1);
 
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
 
         client.change_current_css_index(-1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
 
         client.change_current_css_index(1, true);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
 
         client.change_current_css_index(2, false);
-        assert_eq!(client.current_css(), Some(PathBuf::from("style1.css")));
+        assert_eq!(client.current_css(), Some("/* style1.css */".to_string()));
     }
 
     #[test]

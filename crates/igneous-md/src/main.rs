@@ -76,9 +76,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 convert::initial_html(
                     &css.unwrap_or_else(|| {
                         config
-                            .get_css_paths_clone()
+                            .get_css_entries_clone()
                             .first()
-                            .cloned()
+                            .map(|entry| entry.path.clone())
                             .unwrap_or(PathBuf::new())
                     })
                     .to_string_lossy(),
