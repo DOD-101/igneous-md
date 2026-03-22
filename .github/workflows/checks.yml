@@ -41,6 +41,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkitgtk-6.0-dev
+          sudo apt-get install -y libwebkitgtk-6.0-dev esbuild
 
       - uses: j178/prek-action@v1
