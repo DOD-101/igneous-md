@@ -64,6 +64,10 @@ impl WsQueryParams {
 /// The callback sends the parsed result through the oneshot channel and always
 /// returns `Ok(response)`. Errors are communicated only via the channel.
 #[allow(clippy::type_complexity)]
+#[allow(
+    clippy::result_large_err,
+    reason = "Return type is required by callback parameter of tokio_tungstenite."
+)]
 pub fn ws_callback(
     sender: oneshot::Sender<Result<WsQueryParams, WsValidationError>>,
 ) -> impl FnOnce(&Request<()>, Response<()>) -> Result<Response<()>, Response<Option<String>>> {
