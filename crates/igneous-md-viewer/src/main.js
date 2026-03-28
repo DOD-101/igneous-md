@@ -116,8 +116,7 @@ const url = new URL(window.location.href);
 const params = new URLSearchParams(url.search);
 
 const ws = new WebSocket(
-    // HACK: SET PORT VIA URL PARAM
-    `ws://localhost:2323/ws/?md_path=${params.get("path")}&update_rate=${params.get("update_rate")}`,
+    `ws://${window.location.host}/ws/?md_path=${params.get("path")}&update_rate=${params.get("update_rate")}`,
 );
 
 function safeParse(jsonString) {

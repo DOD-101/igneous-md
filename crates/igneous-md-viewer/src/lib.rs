@@ -75,7 +75,6 @@ impl<'a> Viewer<'a> {
 
         window.set_child(Some(&view));
         window.present();
-        // view.load_uri(&format!("http://{}", addr));
         view.load_html(HTML, Some(addr));
     }
 }

@@ -156,7 +156,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            if let Err(e) = fs::write("/tmp/ingeous-md", port.to_string()) {
+            let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
+
+            let tcp_port = listener.local_addr()?.port();
+
+            if let Err(e) = fs::write("/tmp/ingeous-md", tcp_port.to_string()) {
                 log::error!("Failed to write port to tmp file: {e}")
             };
 
@@ -168,7 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 thread::spawn(move || {
                     let address = Address::new(
                         "localhost",
-                        port,
+                        tcp_port,
                         update_rate,
                         css.as_deref(),
                         path.as_str(),
@@ -179,12 +183,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
 
-            let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
-
             let config = Arc::new(RwLock::new(config));
 
-            while let Ok((stream, other)) = listener.accept().await {
-                log::info!("{}", other);
+            while let Ok((stream, _other)) = listener.accept().await {
                 tokio::spawn(upgrade_connection(stream, Arc::clone(&config)));
             }
 

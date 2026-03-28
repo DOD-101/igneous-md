@@ -40,7 +40,7 @@ pub enum Action {
         #[cfg(feature = "viewer")]
         no_viewer: bool,
         /// Port to run the server on
-        #[arg(short, long, default_value = "2323")]
+        #[arg(short, long, default_value = "0")]
         port: u16,
         // TODO: Add this option back in here once viewer is updated to not need an http server
         // /// Open browser tab
