@@ -26,7 +26,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
 - [ ] Add change streaming API
 
-    - [ ] Editor integration either via plugin
+    - [ ] Editor integration via plugin (Neovim)
 
 - [ ] Fix bug relating to multi line GFM notes
 
