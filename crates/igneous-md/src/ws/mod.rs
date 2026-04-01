@@ -38,51 +38,56 @@ pub async fn upgrade_connection(tcp: TcpStream, config: Arc<RwLock<Config>>) -> 
 
     let mut interval = time::interval(Duration::from_millis(params.update_rate.unwrap_or(1000)));
 
+    // TODO: This should ideally be cleaned up. There are 3 different locations a message can be
+    // sent from which can lead to inconsistencies in logging
     loop {
         tokio::select! {
             _ = interval.tick() => {
                 if let Ok(Some(html)) = client.get_latest_html_if_changed() {
-                    log::info!("Sending new html");
                     let msg = ServerMsg::HtmlUpdate { html };
-                    if let Ok(text) = serde_json::to_string(&msg) {
-                        let _ = ws_write.send(WsMessage::Text(text.into())).await;
-                    }
+                    log::info!("Sending ws message: {}", msg.name());
+
+                    let _ = ws_write.send(msg.as_msg()).await;
                 }
             }
 
             _ = client.config_update_receiver.recv() => {
-                log::info!("Sending config update");
                 if let Some(css) = client.current_css() {
                     let msg = ServerMsg::CssUpdate { css };
+                    log::info!("Sending ws message: {}", msg.name());
 
-                    if let Ok(text) = serde_json::to_string(&msg) {
-                        let _ = ws_write.send(WsMessage::Text(text.into())).await;
-                    }
+                    let _ = ws_write.send(msg.as_msg()).await;
                 }
             },
 
             incoming = ws_read.next() => {
                 match incoming {
                     Some(Ok(message)) => {
-                        log::info!("Received ws message: {}", message);
                         match message {
                             WsMessage::Text(msg_string) => {
                                 if let Ok(client_msg) = serde_json::from_str::<ClientMsg>(&msg_string) {
+                                    log::info!("Received ws message: {}", std::convert::Into::<&'static str>::into(&client_msg));
+                                    log::debug!("Full received ws message: {:?}", client_msg);
+
                                     let return_msg = handle_client_msg(client_msg, &mut client);
-                                    log::info!("Sending ws message: {:?}", return_msg);
-                                    if let Ok(text) = serde_json::to_string(&return_msg) {
-                                        let _ = ws_write.send(WsMessage::Text(text.into())).await;
+
+                                    if let Ok(()) = ws_write.send(return_msg.as_msg()).await {
+                                        log::info!("Sent ws response: {}", return_msg.name());
+                                        log::debug!("Full sent ws message: {:?}", return_msg);
+                                    } else {
+                                        log::error!("Failed to send server response.")
                                     }
                                 } else {
                                     log::warn!("Invalid client message: {}", msg_string)
                                 }
                             },
-
                             WsMessage::Close(_) => {
                                 log::info!("Client initiated connection close");
                                 break;
                             }
-                            _ => {}
+                            msg => {
+                                log::warn!("Received unknown ws message: {msg:?}")
+                            }
                         }
                     }
                     Some(Err(e)) => {
