@@ -140,6 +140,9 @@ igneous-md view path/to/file.md
 
 To get started run `igneous-md generate-config` (will run by automatically if you view a file without the config dir `~/.config/igneous-md/`)
 
+> [!NOTE]
+> Requires `curl` to be installed.
+
 ### Layout
 
 ```sh
@@ -152,9 +155,6 @@ css # general styling
     ├── github-dark.css
     └── github-light.css
 ```
-
-> [!NOTE]
-> Config generation is only available if compiled with `--features generate_config` (a default feature)
 
 ## Keybindings
 

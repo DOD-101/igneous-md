@@ -38,7 +38,6 @@ use {
     std::thread,
 };
 
-#[cfg(feature = "generate_config")]
 use std::{io, io::Write};
 
 #[tokio::main]
@@ -89,7 +88,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             )
             .map_err(Error::ExportFailed)?)
         }
-        #[cfg(feature = "generate_config")]
         Action::GenerateConfig { overwrite } => {
             if config.css_dir().exists() && !overwrite {
                 return Err(Box::new(Error::ConfigDirExists) as Box<dyn std::error::Error>);
@@ -130,29 +128,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fs::create_dir_all(config.code_highlight_dir())
                     .map_err(|e| Error::ConfigGenFailed(Box::new(e)))?;
 
-                // If compiled with generate_config, generate the config
-                #[cfg(feature = "generate_config")]
+                print!("No config found. Would you like to generate the default config? [(y)es/(N)o]: ");
+
+                io::stdout().flush().expect("Failed to flush stdout.");
+
+                let mut user_input = String::new();
+
+                io::stdin()
+                    .read_line(&mut user_input)
+                    .expect("Failed to read input.");
+
+                if user_input
+                    .to_lowercase()
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c == 'y')
                 {
-                    print!("No config found. Would you like to generate the default config? [(y)es/(N)o]: ");
-
-                    io::stdout().flush().expect("Failed to flush stdout.");
-
-                    let mut user_input = String::new();
-
-                    io::stdin()
-                        .read_line(&mut user_input)
-                        .expect("Failed to read input.");
-
-                    if user_input
-                        .to_lowercase()
-                        .chars()
-                        .next()
-                        .is_some_and(|c| c == 'y')
-                    {
-                        config::generate::generate_config_files(&config.css_dir())
-                            .await
-                            .map_err(Error::ConfigGenFailed)?;
-                    }
+                    config::generate::generate_config_files(&config.css_dir())
+                        .await
+                        .map_err(Error::ConfigGenFailed)?;
                 }
             }
 

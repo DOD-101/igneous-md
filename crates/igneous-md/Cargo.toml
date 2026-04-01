@@ -11,8 +11,7 @@ repository.workspace = true
 authors.workspace = true
 
 [features]
-default = ["generate_config", "viewer"]
-generate_config = ["dep:reqwest"]
+default = ["viewer"]
 # TODO: We might remove this feat and just spawn it using a command
 viewer = ["dep:igneous-md-viewer"]
 
@@ -27,7 +26,6 @@ lightningcss = { version = "1.0.0-alpha.71", features = ["bundler"] }
 log = "0.4.22"
 markdown = "1.0.0-alpha.20"
 regex = "1.11.1"
-reqwest = { version = "0.12.11", optional = true }
 serde = { version = "1.0.208", features = ["derive"] }
 serde_json = "1.0.134"
 simple_logger = "5.0.0"
@@ -36,6 +34,9 @@ tokio = { version = "1.42.0", features = [
     "fs",
     "net",
     "macros",
+    "process",
+    "sync",
+    "time",
     "rt-multi-thread",
 ], default-features = false }
 notify = "8.0.0"

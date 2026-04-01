@@ -69,7 +69,6 @@ pub enum Action {
         shell: clap_complete::Shell,
     },
     /// Generate the default config. Requires an internet connection
-    #[cfg(feature = "generate_config")]
     GenerateConfig {
         /// Whether to overwrite the contents of the config dir
         #[arg(short, long)]

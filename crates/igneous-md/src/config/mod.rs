@@ -15,7 +15,6 @@ use std::{
 };
 use tokio::sync::broadcast;
 
-#[cfg(feature = "generate_config")]
 pub mod generate;
 
 /// A CSS entry with its path and content

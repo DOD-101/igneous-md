@@ -23,6 +23,32 @@ Changes:
 - Add 32px margin to body
 "#;
 
+/// URLs for the stylesheet assets, kept in one place so both [fetch_config_files]
+/// and the not-found error message in [curl_fetch] stay in sync.
+mod urls {
+    pub const GH_DARK: &str = concat!(
+        "https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v",
+        "5.8.1",
+        "/github-markdown-dark.css"
+    );
+    pub const GH_LIGHT: &str = concat!(
+        "https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v",
+        "5.8.1",
+        "/github-markdown-light.css"
+    );
+
+    pub const GH_DARK_HLJS: &str = concat!(
+        "https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/",
+        "11.11.1",
+        "/src/styles/github-dark.css"
+    );
+    pub const GH_LIGHT_HLJS: &str = concat!(
+        "https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/",
+        "11.11.1",
+        "/src/styles/github.css"
+    );
+}
+
 /// Responsible for generating the config files and writing them to disk.
 ///
 /// The steps are as follows (not necessarily in order):
@@ -35,9 +61,6 @@ Changes:
 ///
 /// For more information on different steps see the individual functions.
 ///
-///
-/// The function is async to speed up the fetching of the remote files and to allow concurrently writing
-/// to disk.
 pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let (dark_res, dark_hljs_res, light_res, light_hljs_res) = fetch_config_files().await?;
 
@@ -89,30 +112,55 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
-/// Fetch the base styles sheets from GitHub
+/// Download a single URL using `curl` and return its body as a `String`.
+///
+/// Returns a descriptive error if:
+/// - `curl` is not found on `PATH`
+/// - `curl` exits with a non-zero status code
+async fn curl_fetch(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let output = tokio::process::Command::new("curl")
+        .args(["--silent", "--show-error", "--location", "--fail", url])
+        .output()
+        .await
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                format!(
+                    "`curl` was not found on your PATH.\n\
+                     Please either install curl or download the files manually:\n\
+                     {}\n\
+                     {}\n\
+                     {}\n\
+                     {}",
+                    urls::GH_DARK,
+                    urls::GH_DARK_HLJS,
+                    urls::GH_LIGHT,
+                    urls::GH_LIGHT_HLJS,
+                )
+            } else {
+                format!("Failed to run curl: {e}")
+            }
+        })?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("curl failed for {url}: {stderr}").into());
+    }
+
+    Ok(String::from_utf8(output.stdout)?)
+}
+
+/// Fetch the base style sheets from GitHub using `curl`.
 ///
 /// The style sheets are specifically for the GitHub dark and light themes.
 ///
-/// The tuples fields are: (dark, dark_hljs, light, light_hljs)
-async fn fetch_config_files() -> reqwest::Result<(String, String, String, String)> {
-    const HLJS_CSS_VERSION: &str = "11.11.1";
-
-    const GH_CSS_VERSION: &str = "5.8.1";
-
-    let request_client = reqwest::Client::default();
-
-    let gh_dark_css = request_client.get(format!("https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v{GH_CSS_VERSION}/github-markdown-dark.css")).send();
-    let gh_dark_hljs_css = request_client.get(format!("https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/{HLJS_CSS_VERSION}/src/styles/github-dark.css")).send();
-
-    let gh_light_css = request_client.get(format!("https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v{GH_CSS_VERSION}/github-markdown-light.css")).send();
-    let gh_light_hljs_css = request_client.get(format!("https://raw.githubusercontent.com/highlightjs/highlight.js/refs/tags/{HLJS_CSS_VERSION}/src/styles/github.css")).send();
-
-    // Wait for all responses and write files concurrently
+/// The tuple fields are: (dark, dark_hljs, light, light_hljs)
+async fn fetch_config_files() -> Result<(String, String, String, String), Box<dyn std::error::Error>>
+{
     tokio::try_join!(
-        gh_dark_css.await?.text(),
-        gh_dark_hljs_css.await?.text(),
-        gh_light_css.await?.text(),
-        gh_light_hljs_css.await?.text()
+        curl_fetch(urls::GH_DARK),
+        curl_fetch(urls::GH_DARK_HLJS),
+        curl_fetch(urls::GH_LIGHT),
+        curl_fetch(urls::GH_LIGHT_HLJS),
     )
 }
 
@@ -143,8 +191,7 @@ fn adjust_css(css: String, hljs: &str, center: bool) -> String {
     let css_vars = create_css_vars(hexes);
 
     format!(
-        r#"
-/*{NOTICE}*/
+        r#"/*{NOTICE}*/
 @import url("./hljs/{hljs}");
 {css_vars}
 {additional_styles}
@@ -301,7 +348,7 @@ mod test {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime.");
         let contents = rt
             .block_on(fetch_config_files())
-            .expect("Failed to fetch files from GitHub. Do you have network access?");
+            .expect("Failed to fetch files from GitHub. Do you have curl and network access?");
 
         // Test against 404 errors
         assert!(!contents.0.starts_with("404: Not Found"));

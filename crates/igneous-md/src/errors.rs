@@ -10,7 +10,6 @@ pub enum Error {
     /// More general than [Self::ConfigDirExists].
     ConfigGenFailed(Box<dyn std::error::Error>),
     /// Error when the config dir already exists
-    #[cfg(feature = "generate_config")]
     ConfigDirExists,
     /// Error when exporting the md file to html fails
     ExportFailed(std::io::Error),
@@ -23,18 +22,12 @@ impl Display for Error {
         match self {
             Self::ExportFailed(e) => write!(f, "Failed to export md. Underlying io error: {}", e),
             Self::InvalidInput(e) => write!(f, "Invalid input file. Underlying io error: {}", e),
-            #[cfg(feature = "generate_config")]
             Self::ConfigDirExists => write!(
                 f,
                 "The config dir already exists. Run with -o to overwrite."
             ),
-            #[cfg(feature = "generate_config")]
             Self::ConfigGenFailed(e) => {
                 write!(f, "Failed to generate config. Underlying error: {}", e)
-            }
-            #[cfg(not(feature = "generate_config"))]
-            Self::ConfigGenFailed(e) => {
-                write!(f, "Failed to create config dir. Underlying error: {}", e)
             }
         }
     }
