@@ -43,8 +43,6 @@ impl<'a> Viewer<'a> {
         context.set_cache_model(CacheModel::DocumentBrowser);
         // TODO: Not sure this will behave properly with relative paths in all cases. Needs further
         // testing.
-        //
-        // TODO: Document this as necessary for writing your own viewer
         context.register_uri_scheme("asset", |req: &URISchemeRequest| {
             let uri = req.uri().unwrap();
             let path = uri.strip_prefix("asset://").unwrap();
