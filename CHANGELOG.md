@@ -13,6 +13,10 @@
 - Remove rocket and do all communication via websockets
 - Remove "generate_config" feature flag and use curl for fetching of files
 
+### Fixed
+
+- made GitHub-style notes in lists behave properly
+
 ## 0.3.0 - 2025-02-16
 
 ### Added

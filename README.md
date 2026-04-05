@@ -28,7 +28,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
     - [ ] Editor integration via plugin (Neovim)
 
-- [ ] Fix bug relating to multi line GFM notes
+- [x] Fix bug relating to indented GFM notes
 
 - [x] Add github theme closer to github itself (limit width and center content)
 
@@ -104,8 +104,8 @@ You must also install `webkit-gtk 2.3x+`.
     sudo apt update && apt install libgtk-4-dev libwebkitgtk-6.0-dev build-essential libssl-dev
     ```
 
-    > [!NOTE]
-    > Feel free to add your distro here! PRs welcome!
+> [!NOTE]
+> Feel free to add your distro here! PRs welcome!
 
 3. Run `cargo build --release`
 

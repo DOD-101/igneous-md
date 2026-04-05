@@ -149,7 +149,7 @@ fn post_process_html(html: String) -> String {
 
     // --- Add GitHub-style markdown alerts / highlight-notes
     let alerts_data: Vec<(kuchikiki::NodeDataRef<kuchikiki::ElementData>, String)> = document
-        .select(r#"blockquote > p:first-child"#)
+        .select(r#"main > blockquote > p:first-child"#)
         .expect("Selector is hard-coded.")
         .filter_map(|a| {
             // We're getting the first text node of `a` to use in the regex
@@ -354,6 +354,14 @@ mod test {
 > This multi line alter, which is rather long
 > should work
             "#,
+            r#"
+1. Text
+
+    - Some
+
+    > [!NOTE]
+    > This should not work
+            "#,
         ];
 
         let html_output = md_input.map(md_to_html);
@@ -369,6 +377,7 @@ mod test {
         assert!(elements.next().unwrap().is_err());
         assert!(elements.next().unwrap().is_ok_and(is_alert));
         assert!(elements.next().unwrap().is_ok_and(is_alert));
+        assert!(elements.next().unwrap().is_err());
 
         // make sure the iterator is empty
         assert!(elements.next().is_none());
