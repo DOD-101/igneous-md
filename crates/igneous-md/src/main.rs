@@ -14,7 +14,6 @@ use clap::{CommandFactory, Parser};
 use simple_logger::SimpleLogger;
 use std::{
     fs,
-    path::PathBuf,
     sync::{Arc, RwLock},
 };
 use tokio::net::TcpListener;
@@ -24,7 +23,6 @@ mod client;
 mod config;
 mod convert;
 mod errors;
-mod export;
 mod paths;
 mod ws;
 
@@ -65,28 +63,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Convert the md file rather than launching the server, if the user passed the subcommand
     match cli.command {
         Action::Convert {
-            path,
-            css,
-            export_name,
+            path: _,
+            css: _,
+            export_path: _,
         } => {
-            let html = convert::md_to_html(&fs::read_to_string(path).map_err(Error::InvalidInput)?);
-
-            Ok(export::export(
-                convert::initial_html(
-                    &css.unwrap_or_else(|| {
-                        config
-                            .get_css_entries_clone()
-                            .first()
-                            .map(|entry| entry.path.clone())
-                            .unwrap_or(PathBuf::new())
-                    })
-                    .to_string_lossy(),
-                    &html,
-                ),
-                config.config_dir(),
-                export_name,
-            )
-            .map_err(Error::ExportFailed)?)
+            unimplemented!("WIP: Currently unimplemented.")
         }
         Action::GenerateConfig { overwrite } => {
             if config.css_dir().exists() && !overwrite {
@@ -171,7 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         css.as_deref(),
                         path.as_str(),
                     );
-                    let client = Viewer::new(address);
+                    let client = Viewer::new(address, false);
 
                     client.start()
                 });

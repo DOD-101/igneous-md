@@ -3,7 +3,10 @@
 //! These mostly just wrap other errors, adding context.
 use std::fmt::{Debug, Display};
 
+// TODO: Rework error handling for the server
+
 /// Custom errors that may occur when running different actions
+#[allow(dead_code, reason = "HACK: This is temporary")]
 pub enum Error {
     /// Error when generating the config fails
     ///

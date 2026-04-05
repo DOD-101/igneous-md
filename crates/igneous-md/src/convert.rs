@@ -280,14 +280,6 @@ fn post_process_html(html: String) -> String {
     String::from_utf8(output).expect("Converting document should never fail.")
 }
 
-/// Returns the initial html, for when a client connects for the first time
-///
-/// This is mainly used to return a valid HTML document and load the required JS files.
-pub fn initial_html(_css: &str, body: &str) -> String {
-    // HACK: Rework this function
-    body.to_string()
-}
-
 #[cfg(test)]
 mod test {
     use super::md_to_html;

@@ -4,6 +4,13 @@
     <meta charset="utf-8"/>
     <title>Igneous-md</title>
     <script>{{highlightjs}}</script>
+    <style>
+      @media print {
+        body {
+          page-break-inside: avoid;
+        }
+      }
+    </style>
     <style id="md-style"></style>
     <script defer>{{mainjs}}</script>
     <script defer>{{mathjaxjs}}</script>

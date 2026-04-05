@@ -60,7 +60,6 @@ document.addEventListener("keydown", (event) => {
             ws.send(
                 JSON.stringify({
                     t: "RedirectDefault",
-                    c: {},
                 }),
             );
 
@@ -87,6 +86,14 @@ document.addEventListener("keydown", (event) => {
                 top: document.body.scrollHeight,
                 behavior: "smooth",
             });
+            break;
+
+        case "p":
+            ws.send(
+                JSON.stringify({
+                    t: "RequestExport",
+                }),
+            );
             break;
 
         default:
@@ -171,6 +178,12 @@ ws.onmessage = (event) => {
                 MathJax.typeset();
             }
             break;
+        case "Export":
+            window.webkit.messageHandlers.exportPDF.postMessage(content.path);
+            break;
+        // case "Exit":
+        //     window.webkit.messageHandlers.exit.postMessage("");
+        //     break;
         default:
             console.warn("Unknown message type:", tag);
             break;

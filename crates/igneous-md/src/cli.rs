@@ -1,6 +1,6 @@
 //! Module containing all CLI related functionality
 use clap::{Parser, Subcommand};
-use std::{ffi::OsString, path::PathBuf};
+use std::path::PathBuf;
 
 use crate::paths::DEFAULT_CONFIG_DIR;
 
@@ -53,15 +53,18 @@ pub enum Action {
     /// Convert a md file to html and save it to disk
     ///
     /// The file will be saved to the specified config dir.
+    #[command(visible_alias = "export")]
     Convert {
         /// The file to convert
         path: PathBuf,
         /// Path to set the css stylesheet to
         #[arg(short, long, value_name = "PATH")]
         css: Option<PathBuf>,
-        /// The file name of the file to save to disk
+        /// Path to save the file to
+        ///
+        /// Defaults to saving it into the config dir.
         #[arg(short, long, value_name = "FILE")]
-        export_name: Option<OsString>,
+        export_path: Option<PathBuf>,
     },
     /// Generate shell completions
     Completions {

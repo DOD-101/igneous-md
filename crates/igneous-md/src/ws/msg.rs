@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 use tokio_tungstenite::tungstenite::protocol::Message as WsMessage;
 
-/// Struct representing a message from the server back to the client
+/// Possible messages sent by the server
 #[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
 #[serde(tag = "t", content = "c")]
 pub enum ServerMsg {
@@ -23,6 +23,13 @@ pub enum ServerMsg {
     HtmlUpdate {
         /// Html content
         html: String,
+    },
+    /// Request the client export the current html to the specified path
+    ///
+    /// The exported file is expected to be PDF.
+    Export {
+        /// The path to export to
+        path: PathBuf,
     },
     /// Server is shutting down
     ///
@@ -59,7 +66,7 @@ impl ServerMsg {
     }
 }
 
-/// Struct representing a message from the client
+/// Possible messages sent by the client
 #[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
 #[serde(tag = "t", content = "c")]
 pub enum ClientMsg {
@@ -72,8 +79,10 @@ pub enum ClientMsg {
         /// If the change is relative to the current css index
         relative: bool,
     },
-    /// Request for the server to export the html (save it to disk)
-    ExportHtml,
+    /// Client requests the server send [ServerMsg::Export]
+    ///
+    /// This is required so that the server may send the path to export to.
+    RequestExport,
     /// Request for the server to change the md file being viewed
     Redirect {
         /// Where the redirect is headed

@@ -13,7 +13,7 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 - Standalone markdown viewer outside browser
 - Switching of stylesheets on the fly
 - Ability to add custom CSS
-- Export generated HTML
+- Export to pdf
 - Works offline
 
 ## To-do

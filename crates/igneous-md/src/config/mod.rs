@@ -76,11 +76,6 @@ impl Config {
         self.config_dir.join("css/hljs")
     }
 
-    /// Get [field@Self::config_dir]
-    pub fn config_dir(&self) -> &PathBuf {
-        &self.config_dir
-    }
-
     /// Start watching the [Self::config_dir]
     ///
     /// After this [Self::update_sender] will start sending events.
@@ -112,6 +107,14 @@ impl Config {
         self.watcher = Some(watcher);
 
         Ok(())
+    }
+
+    /// Get the path to export a file
+    pub fn export_path(&self) -> PathBuf {
+        self.config_dir.join(format!(
+            "export-{}.pdf",
+            chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
+        ))
     }
 }
 

@@ -22,7 +22,7 @@ use tokio::{
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 use self::handshake::perform_handshake;
-use crate::{client::Client, config::Config, export::export};
+use crate::{client::Client, config::Config};
 use msg::{ClientMsg, ServerMsg};
 
 /// Handles upgrading the connection to the Websocket protocol and facilitating communication
@@ -66,7 +66,7 @@ pub async fn upgrade_connection(tcp: TcpStream, config: Arc<RwLock<Config>>) -> 
                         match message {
                             WsMessage::Text(msg_string) => {
                                 if let Ok(client_msg) = serde_json::from_str::<ClientMsg>(&msg_string) {
-                                    log::info!("Received ws message: {}", std::convert::Into::<&'static str>::into(&client_msg));
+                                    log::info!("Received ws message: {}", client_msg.name());
                                     log::debug!("Full received ws message: {:?}", client_msg);
 
                                     let return_msg = handle_client_msg(client_msg, &mut client);
@@ -117,17 +117,9 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
                 msg: "Failed to change css.".to_string(),
             }
         }
-        ClientMsg::ExportHtml => {
-            if let Err(e) = export(
-                client.get_html(),
-                client.config.read().unwrap().config_dir(),
-                None,
-            ) {
-                ServerMsg::Error { msg: e.to_string() }
-            } else {
-                ServerMsg::Success
-            }
-        }
+        ClientMsg::RequestExport => ServerMsg::Export {
+            path: client.config.read().unwrap().export_path(),
+        },
         ClientMsg::Redirect { path } => {
             client.set_md_path(path);
 

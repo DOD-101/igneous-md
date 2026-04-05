@@ -127,11 +127,6 @@ impl Client {
         self.md_path.clone()
     }
 
-    /// Getter function for [Self::html]
-    pub fn get_html(&self) -> String {
-        self.html.clone()
-    }
-
     /// [Self::get_latest_html_if_changed], but will always return html.
     #[allow(dead_code)]
     pub fn get_latest_html(&mut self) -> io::Result<String> {
