@@ -1,13 +1,20 @@
 //! Module containing all CLI related functionality
 use clap::{Parser, Subcommand};
+use git_version::git_version;
 use std::path::PathBuf;
 
 use crate::paths::DEFAULT_CONFIG_DIR;
 
+const VERSION: &str = git_version!(
+    args = ["--always", "--dirty=-modified"],
+    prefix = concat!(env!("CARGO_PKG_VERSION"), " ("),
+    suffix = ")"
+);
+
 /// Top Level Struct of the CLI
 /// For more information see [clap documentation](https://docs.rs/clap/latest/clap/index.html)
 #[derive(Parser, Debug)]
-#[command(version,
+#[command(version = VERSION,
     about= "igneous-md | the simple and lightweight markdown viewer",
     long_about = None,
 )]

@@ -4,6 +4,7 @@
 
 ### Added
 
+- `--version` now includes git commit hash
 - Ability to adjust update rate
 - Move to gtk4 and webkit6
 - bundling and minification of css style sheets

@@ -48,3 +48,4 @@ http = "1.1"
 form_urlencoded = "1.2.*"
 thiserror = "2.0.18"
 strum = { version = "0.28.0", features = ["derive"] }
+git-version = "0.3"

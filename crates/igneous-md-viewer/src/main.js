@@ -141,7 +141,6 @@ ws.onmessage = (event) => {
     if (!data) return;
 
     // TODO: It would be nice to use the cached css file if it hasn't changed
-    //
 
     const tag = data.t;
     const content = data.c;
