@@ -12,11 +12,7 @@
 
 use clap::{CommandFactory, Parser};
 use simple_logger::SimpleLogger;
-use std::{
-    fs,
-    sync::{Arc, RwLock},
-};
-use tokio::net::TcpListener;
+use std::fs;
 
 mod cli;
 mod client;
@@ -24,11 +20,11 @@ mod config;
 mod convert;
 mod errors;
 mod paths;
+mod server;
 mod ws;
 
 use cli::{Action, Cli};
 use errors::Error;
-use ws::upgrade_connection;
 
 #[cfg(feature = "viewer")]
 use {
@@ -60,7 +56,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Convert the md file rather than launching the server, if the user passed the subcommand
     match cli.command {
         Action::Convert {
             path: _,
@@ -131,13 +126,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
+            let handle = server::launch_server(port, config).await?;
 
-            let tcp_port = listener.local_addr()?.port();
-
-            if let Err(e) = fs::write("/tmp/ingeous-md", tcp_port.to_string()) {
-                log::error!("Failed to write port to tmp file: {e}")
-            };
+            let tcp_port = handle.port();
 
             #[cfg(feature = "viewer")]
             if !no_viewer {
@@ -158,11 +149,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
 
-            let config = Arc::new(RwLock::new(config));
+            tokio::signal::ctrl_c().await?;
 
-            while let Ok((stream, _other)) = listener.accept().await {
-                tokio::spawn(upgrade_connection(stream, Arc::clone(&config)));
-            }
+            handle.stop().expect("Failed to stop server properly.");
 
             Ok(())
         }

@@ -37,6 +37,7 @@ tokio = { version = "1.42.0", features = [
     "process",
     "sync",
     "time",
+    "signal",
     "rt-multi-thread",
 ], default-features = false }
 notify = "8.0.0"
