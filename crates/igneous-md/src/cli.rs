@@ -61,6 +61,7 @@ pub enum Action {
     ///
     /// The file will be saved to the specified config dir.
     #[command(visible_alias = "export")]
+    #[cfg(feature = "viewer")]
     Convert {
         /// The file to convert
         path: PathBuf,

@@ -17,17 +17,22 @@ use std::{
 };
 use tokio::{
     net::TcpStream,
+    sync::mpsc,
     time::{self, Duration},
 };
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
-use self::handshake::perform_handshake;
 use crate::{client::Client, config::Config};
+use handshake::perform_handshake;
 use msg::{ClientMsg, ServerMsg};
 
 /// Handles upgrading the connection to the Websocket protocol and facilitating communication
 /// thereafter
-pub async fn upgrade_connection(tcp: TcpStream, config: Arc<RwLock<Config>>) -> io::Result<()> {
+pub async fn upgrade_connection(
+    tcp: TcpStream,
+    config: Arc<RwLock<Config>>,
+    mut server_msg_rx: mpsc::UnboundedReceiver<ServerMsg>,
+) -> io::Result<()> {
     let (ws_stream, params) = perform_handshake(tcp)
         .await
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
@@ -38,7 +43,7 @@ pub async fn upgrade_connection(tcp: TcpStream, config: Arc<RwLock<Config>>) -> 
 
     let mut interval = time::interval(Duration::from_millis(params.update_rate.unwrap_or(1000)));
 
-    // TODO: This should ideally be cleaned up. There are 3 different locations a message can be
+    // TODO: This should ideally be cleaned up (using a custom Stream type?). There are 4 different locations a message can be
     // sent from which can lead to inconsistencies in logging
     loop {
         tokio::select! {
@@ -58,6 +63,12 @@ pub async fn upgrade_connection(tcp: TcpStream, config: Arc<RwLock<Config>>) -> 
 
                     let _ = ws_write.send(msg.as_msg()).await;
                 }
+            },
+
+            Some(server_msg) = server_msg_rx.recv() => {
+                log::info!("Sending msg from server backend: {}", server_msg.name());
+
+                let _ = ws_write.send(server_msg.as_msg()).await;
             },
 
             incoming = ws_read.next() => {

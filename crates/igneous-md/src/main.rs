@@ -32,7 +32,11 @@ use {
     std::thread,
 };
 
-use std::{io, io::Write};
+use std::{
+    io::{self, Write},
+    time::Duration,
+};
+use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -57,12 +61,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     match cli.command {
+        #[cfg(feature = "viewer")]
         Action::Convert {
-            path: _,
-            css: _,
-            export_path: _,
+            path,
+            css,
+            export_path,
         } => {
-            unimplemented!("WIP: Currently unimplemented.")
+            let default_export_path = config.export_path();
+            let handle = server::launch_server(0, config).await?;
+
+            let tcp_port = handle.port();
+
+            let path = path.to_string_lossy().to_string();
+            let css = css.map(|v| v.to_string_lossy().to_string());
+
+            thread::spawn(move || {
+                let address =
+                    Address::new("localhost", tcp_port, 1000, css.as_deref(), path.as_str());
+                let client = Viewer::new(address, true);
+
+                client.start()
+            });
+
+            // TODO: When we add proper ClientHandles in server.rs (see TODO there) we can also
+            // improve the code here to no longer rely on these timings
+
+            // wait for client to start
+            sleep(Duration::from_millis(1000)).await;
+
+            let mut launch_tries = 0;
+            loop {
+                if let Some(tx) = handle.get_client_sender(0) {
+                    tx.send(ws::msg::ServerMsg::Export {
+                        path: export_path.unwrap_or(default_export_path),
+                    })
+                    .map_err(|_| Error::HeadlessClientLaunchFailure)?;
+
+                    break;
+                }
+                launch_tries += 1;
+
+                if launch_tries > 5 {
+                    log::error!(
+                        "Failed to start headless client! Cannot convert markdown to pdf. "
+                    );
+                    return Err(Error::HeadlessClientLaunchFailure.into());
+                }
+
+                log::warn!("Headless client hasn't started. Waiting further.");
+
+                sleep(Duration::from_millis(1000)).await;
+            }
+
+            // wait for printing to complete
+            sleep(Duration::from_millis(1000)).await;
+
+            Ok(())
         }
         Action::GenerateConfig { overwrite } => {
             if config.css_dir().exists() && !overwrite {

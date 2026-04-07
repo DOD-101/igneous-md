@@ -81,6 +81,7 @@ impl<'a> Viewer<'a> {
         let view = WebView::builder()
             .web_context(&context)
             .user_content_manager(&content)
+            .visible(!headless)
             .settings(
                 &Settings::builder()
                     .print_backgrounds(true)
@@ -96,7 +97,13 @@ impl<'a> Viewer<'a> {
         });
 
         window.set_child(Some(&view));
-        window.present();
+
+        if headless {
+            gtk4::prelude::WidgetExt::realize(&window);
+        } else {
+            window.present();
+        }
+
         view.load_html(HTML, Some(addr));
     }
 

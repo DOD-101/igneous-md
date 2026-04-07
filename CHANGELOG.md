@@ -7,12 +7,13 @@
 - `--version` now includes git commit hash
 - Ability to adjust update rate
 - Move to gtk4 and webkit6
-- bundling and minification of css style sheets
+- Bundling and minification of css style sheets
 
 ### Changed
 
 - Remove rocket and do all communication via websockets
 - Remove "generate_config" feature flag and use curl for fetching of files
+- Markdown is now converted to PDF instead of html and requires the `viewer` feature to work.
 
 ### Fixed
 

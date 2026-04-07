@@ -18,6 +18,8 @@ pub enum Error {
     ExportFailed(std::io::Error),
     /// Error when invalid input files are passed
     InvalidInput(std::io::Error),
+    /// Headless client failed to launch
+    HeadlessClientLaunchFailure,
 }
 
 impl Display for Error {
@@ -31,6 +33,9 @@ impl Display for Error {
             ),
             Self::ConfigGenFailed(e) => {
                 write!(f, "Failed to generate config. Underlying error: {}", e)
+            }
+            Self::HeadlessClientLaunchFailure => {
+                write!(f, "Failed to launch the headless client.")
             }
         }
     }
