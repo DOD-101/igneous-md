@@ -26,6 +26,8 @@ mod ws;
 use cli::{Action, Cli};
 use errors::Error;
 
+use crate::errors::AppResult;
+
 #[cfg(feature = "viewer")]
 use {
     igneous_md_viewer::{Address, Viewer},
@@ -39,7 +41,11 @@ use std::{
 use tokio::time::sleep;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> AppResult {
+    AppResult(run().await)
+}
+
+async fn run() -> Result<(), Error> {
     let cli = Cli::parse();
 
     SimpleLogger::new()
@@ -49,14 +55,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = match config::Config::new(cli.config) {
         Ok(mut c) => {
-            c.start_watching()
-                .expect("Failed to start watching config dir");
+            c.start_watching().map_err(Error::WatchConfigDirFailed)?;
+
             c
         }
         Err(e) => {
-            log::error!("Failed to create `Config` Struct: {}", e);
-
-            return Err(Box::new(e))?;
+            return Err(Error::ConfigCreationFailed(e));
         }
     };
 
@@ -68,7 +72,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             export_path,
         } => {
             let default_export_path = config.export_path();
-            let handle = server::launch_server(0, config).await?;
+            let handle = server::launch_server(0, config)
+                .await
+                .map_err(Error::ServerLaunchFailed)?;
 
             let tcp_port = handle.port();
 
@@ -95,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     tx.send(ws::msg::ServerMsg::Export {
                         path: export_path.unwrap_or(default_export_path),
                     })
-                    .map_err(|_| Error::HeadlessClientLaunchFailure)?;
+                    .map_err(|_| Error::HeadlessClientLaunchFailed)?;
 
                     break;
                 }
@@ -105,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     log::error!(
                         "Failed to start headless client! Cannot convert markdown to pdf. "
                     );
-                    return Err(Error::HeadlessClientLaunchFailure.into());
+                    return Err(Error::HeadlessClientLaunchFailed);
                 }
 
                 log::warn!("Headless client hasn't started. Waiting further.");
@@ -120,11 +126,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Action::GenerateConfig { overwrite } => {
             if config.css_dir().exists() && !overwrite {
-                return Err(Box::new(Error::ConfigDirExists) as Box<dyn std::error::Error>);
+                return Err(Error::ConfigDirExists);
             }
 
-            fs::create_dir_all(config.code_highlight_dir())
-                .map_err(|e| Error::ConfigGenFailed(Box::new(e) as Box<dyn std::error::Error>))?;
+            fs::create_dir_all(config.code_highlight_dir()).map_err(Error::ConfigGenFailed)?;
 
             config::generate::generate_config_files(&config.css_dir()).await?;
 
@@ -155,8 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Check if the config exists
             if !config.css_dir().exists() {
                 // Always at least create the dir
-                fs::create_dir_all(config.code_highlight_dir())
-                    .map_err(|e| Error::ConfigGenFailed(Box::new(e)))?;
+                fs::create_dir_all(config.code_highlight_dir()).map_err(Error::ConfigGenFailed)?;
 
                 print!("No config found. Would you like to generate the default config? [(y)es/(N)o]: ");
 
@@ -174,13 +178,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .next()
                     .is_some_and(|c| c == 'y')
                 {
-                    config::generate::generate_config_files(&config.css_dir())
-                        .await
-                        .map_err(Error::ConfigGenFailed)?;
+                    config::generate::generate_config_files(&config.css_dir()).await?;
                 }
             }
 
-            let handle = server::launch_server(port, config).await?;
+            let handle = server::launch_server(port, config)
+                .await
+                .map_err(Error::ServerLaunchFailed)?;
 
             let tcp_port = handle.port();
 
@@ -203,7 +207,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
 
-            tokio::signal::ctrl_c().await?;
+            tokio::signal::ctrl_c().await.map_err(Error::SignalFailed)?;
 
             handle.stop().expect("Failed to stop server properly.");
 

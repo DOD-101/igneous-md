@@ -5,6 +5,8 @@ use itertools::Itertools;
 use regex::Regex;
 use std::path::Path;
 
+use crate::errors::Error;
+
 /// Copyright notice for highlight.js files
 const NOTICE_HLJS: &str = r#"
 Theme taken from: https://github.com/highlightjs/highlight.js
@@ -25,7 +27,7 @@ Changes:
 
 /// URLs for the stylesheet assets, kept in one place so both [fetch_config_files]
 /// and the not-found error message in [curl_fetch] stay in sync.
-mod urls {
+pub(crate) mod urls {
     pub const GH_DARK: &str = concat!(
         "https://raw.githubusercontent.com/sindresorhus/github-markdown-css/refs/tags/v",
         "5.8.1",
@@ -61,7 +63,7 @@ mod urls {
 ///
 /// For more information on different steps see the individual functions.
 ///
-pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn generate_config_files(css_dir: &Path) -> Result<(), Error> {
     let (dark_res, dark_hljs_res, light_res, light_hljs_res) = fetch_config_files().await?;
 
     tokio::try_join!(
@@ -107,7 +109,8 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
             )
             .await
         }
-    )?;
+    )
+    .map_err(Error::ConfigGenFailed)?;
 
     Ok(())
 }
@@ -117,36 +120,25 @@ pub async fn generate_config_files(css_dir: &Path) -> Result<(), Box<dyn std::er
 /// Returns a descriptive error if:
 /// - `curl` is not found on `PATH`
 /// - `curl` exits with a non-zero status code
-async fn curl_fetch(url: &str) -> Result<String, Box<dyn std::error::Error>> {
+async fn curl_fetch(url: &str) -> Result<String, Error> {
     let output = tokio::process::Command::new("curl")
         .args(["--silent", "--show-error", "--location", "--fail", url])
         .output()
         .await
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                format!(
-                    "`curl` was not found on your PATH.\n\
-                     Please either install curl or download the files manually:\n\
-                     {}\n\
-                     {}\n\
-                     {}\n\
-                     {}",
-                    urls::GH_DARK,
-                    urls::GH_DARK_HLJS,
-                    urls::GH_LIGHT,
-                    urls::GH_LIGHT_HLJS,
-                )
+                Error::CurlNotFound
             } else {
-                format!("Failed to run curl: {e}")
+                Error::CurlLaunchFailed(e)
             }
         })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("curl failed for {url}: {stderr}").into());
+        return Err(Error::CurlFetch(url.to_string(), stderr.to_string()));
     }
 
-    Ok(String::from_utf8(output.stdout)?)
+    String::from_utf8(output.stdout).map_err(|e| Error::CurlOutputInvalid(url.to_string(), e))
 }
 
 /// Fetch the base style sheets from GitHub using `curl`.
@@ -154,8 +146,7 @@ async fn curl_fetch(url: &str) -> Result<String, Box<dyn std::error::Error>> {
 /// The style sheets are specifically for the GitHub dark and light themes.
 ///
 /// The tuple fields are: (dark, dark_hljs, light, light_hljs)
-async fn fetch_config_files() -> Result<(String, String, String, String), Box<dyn std::error::Error>>
-{
+async fn fetch_config_files() -> Result<(String, String, String, String), Error> {
     tokio::try_join!(
         curl_fetch(urls::GH_DARK),
         curl_fetch(urls::GH_DARK_HLJS),

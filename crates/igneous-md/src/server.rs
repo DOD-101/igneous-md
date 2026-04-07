@@ -67,10 +67,7 @@ impl ServerHandle {
 ///
 /// The server writes the port it is listening on to `/tmp/ingeous-md` since if `port` is 0 it will
 /// randomly select a port to use.
-pub async fn launch_server(
-    port: u16,
-    config: Config,
-) -> Result<ServerHandle, Box<dyn std::error::Error>> {
+pub async fn launch_server(port: u16, config: Config) -> Result<ServerHandle, std::io::Error> {
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
     let tcp_port = listener.local_addr()?.port();
 
