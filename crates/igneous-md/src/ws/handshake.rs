@@ -3,11 +3,13 @@
 //! The handshake validates the incoming request query parameters and returns
 //! a [WebSocketStream] along with the parsed [WsQueryParams].
 
+// TODO: This requires improved logging
+
 use http::{Request, Response};
 use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
-use tokio_tungstenite::{accept_hdr_async, WebSocketStream};
+use tokio_tungstenite::{WebSocketStream, accept_hdr_async};
 
 /// Query parameters received during the WebSocket handshake.
 #[derive(Debug)]

@@ -4,11 +4,16 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use strum::IntoStaticStr;
+use strum::{EnumIs, IntoStaticStr};
 use tokio_tungstenite::tungstenite::protocol::Message as WsMessage;
 
+pub trait AsMsg {
+    /// Convert [Self] into a [WsMessage]
+    fn as_msg(&self) -> WsMessage;
+}
+
 /// Possible messages sent by the server
-#[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
+#[derive(Serialize, Deserialize, Debug, IntoStaticStr, PartialEq, Eq, EnumIs)]
 #[serde(tag = "t", content = "c")]
 pub enum ServerMsg {
     /// Updated CSS for the html content
@@ -48,16 +53,17 @@ pub enum ServerMsg {
     },
 }
 
-impl ServerMsg {
-    /// Convert [Self] into a [WsMessage]
-    pub fn as_msg(&self) -> WsMessage {
+impl AsMsg for ServerMsg {
+    fn as_msg(&self) -> WsMessage {
         WsMessage::Text(
             serde_json::to_string(&self)
                 .expect("Should never fail to serialize msg.")
                 .into(),
         )
     }
+}
 
+impl ServerMsg {
     /// Name of the message
     ///
     /// Just a wrapper around [strum::IntoStaticStr] to help with typing
@@ -67,7 +73,7 @@ impl ServerMsg {
 }
 
 /// Possible messages sent by the client
-#[derive(Serialize, Deserialize, Debug, IntoStaticStr)]
+#[derive(Serialize, Deserialize, Debug, IntoStaticStr, PartialEq, Eq, EnumIs)]
 #[serde(tag = "t", content = "c")]
 pub enum ClientMsg {
     /// Request a new stylesheet
@@ -90,6 +96,18 @@ pub enum ClientMsg {
     },
     /// Request for the server to change the md file being viewed back to the default
     RedirectDefault,
+    /// Check that the server is running and responding to requests
+    CheckServer,
+}
+
+impl AsMsg for ClientMsg {
+    fn as_msg(&self) -> WsMessage {
+        WsMessage::Text(
+            serde_json::to_string(&self)
+                .expect("Should never fail to serialize msg.")
+                .into(),
+        )
+    }
 }
 
 impl ClientMsg {

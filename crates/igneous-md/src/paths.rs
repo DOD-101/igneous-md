@@ -14,6 +14,8 @@ use std::{
 
 use crate::config::CssEntry;
 
+pub const SERVER_PORT_FILE: &str = "/tmp/igneous-md";
+
 /// Default config dir for the application
 ///
 /// <div class="warning">
@@ -99,4 +101,28 @@ pub fn read_css_dir(css_dir: &Path) -> io::Result<Vec<CssEntry>> {
         .collect();
 
     Ok(entries)
+}
+
+/// Attempt to delete the tmp port file
+///
+/// If this fails it will log a warning.
+///
+/// See:
+/// - [SERVER_PORT_FILE]
+pub fn attempt_delete_port_file() {
+    if let Err(e) = fs::remove_file(SERVER_PORT_FILE) {
+        log::warn!("Failed to remove tmp port file: {e}")
+    }
+}
+
+/// Attempt to write the tmp port file
+///
+/// If this fails it will log a warning
+///
+/// See:
+/// - [SERVER_PORT_FILE]
+pub fn attempt_write_port_file(port: u16) {
+    if let Err(e) = fs::write(SERVER_PORT_FILE, port.to_string()) {
+        log::warn!("Failed to write tmp port file: {e}")
+    }
 }

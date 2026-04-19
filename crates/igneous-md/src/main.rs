@@ -162,7 +162,9 @@ async fn run() -> Result<(), Error> {
                 // Always at least create the dir
                 fs::create_dir_all(config.code_highlight_dir()).map_err(Error::ConfigGenFailed)?;
 
-                print!("No config found. Would you like to generate the default config? [(y)es/(N)o]: ");
+                print!(
+                    "No config found. Would you like to generate the default config? [(y)es/(N)o]: "
+                );
 
                 io::stdout().flush().expect("Failed to flush stdout.");
 
@@ -182,18 +184,56 @@ async fn run() -> Result<(), Error> {
                 }
             }
 
-            let handle = server::launch_server(port, config)
-                .await
-                .map_err(Error::ServerLaunchFailed)?;
+            let mut existing_port = None;
+            // if no port was given explicitly
+            if port == 0 {
+                match fs::read_to_string(paths::SERVER_PORT_FILE) {
+                    Ok(content) => {
+                        if let Ok(port) = content.parse::<u16>() {
+                            if server::test_server_connection(port).await {
+                                log::info!("Connecting to existing server on port {port}");
+                                existing_port = Some(port);
+                            }
+                        } else {
+                            log::debug!(
+                                "{} is invalid. Attempting to delete.",
+                                paths::SERVER_PORT_FILE
+                            );
+                            paths::attempt_delete_port_file();
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Could not read {}: {e}", paths::SERVER_PORT_FILE);
+                    }
+                }
+            }
 
-            let tcp_port = handle.port();
+            let mut handle = None;
+            let tcp_port = if let Some(p) = existing_port {
+                p
+            } else {
+                let h = server::launch_server(port, config)
+                    .await
+                    .map_err(Error::ServerLaunchFailed)?;
+
+                let p = h.port();
+
+                handle = Some(h);
+
+                p
+            };
 
             #[cfg(feature = "viewer")]
-            if !no_viewer {
+            let viewer_handle = if !no_viewer {
                 let path = path.to_string_lossy().to_string();
                 let css = css.map(|v| v.to_string_lossy().to_string());
 
-                thread::spawn(move || {
+                // TODO: If in the future we can change this to a Command it would (a) simplify the
+                // build process somewhat since the server would no longer rely on the viewer (b)
+                // allow the process to exit if we only need to launch the viewer if another server
+                // is already running
+
+                Some(thread::spawn(move || {
                     let address = Address::new(
                         "localhost",
                         tcp_port,
@@ -204,8 +244,22 @@ async fn run() -> Result<(), Error> {
                     let client = Viewer::new(address, false);
 
                     client.start()
-                });
-            }
+                }))
+            } else {
+                None
+            };
+
+            // exit if we didn't start the server
+            let Some(handle) = handle else {
+                // wait on the viewer if it was started (see todo above)
+                #[cfg(feature = "viewer")]
+                {
+                    if let Some(vh) = viewer_handle {
+                        vh.join().unwrap();
+                    }
+                }
+                return Ok(());
+            };
 
             tokio::signal::ctrl_c().await.map_err(Error::SignalFailed)?;
 

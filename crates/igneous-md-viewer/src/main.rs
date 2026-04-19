@@ -45,7 +45,7 @@ fn main() {
 }
 
 fn read_port() -> Result<u16, Box<dyn Error>> {
-    Ok(fs::read_to_string("/tmp/ingeous-md")?
+    Ok(fs::read_to_string("/tmp/igneous-md")?
         .parse()
         .expect("Invalid port file in tmp."))
 }

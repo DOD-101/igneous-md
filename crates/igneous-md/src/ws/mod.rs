@@ -22,9 +22,11 @@ use tokio::{
 };
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
+// TODO: This module requires improved logging (see also TODO below)
+
 use crate::{client::Client, config::Config};
 use handshake::perform_handshake;
-use msg::{ClientMsg, ServerMsg};
+use msg::{AsMsg, ClientMsg, ServerMsg};
 
 /// Handles upgrading the connection to the Websocket protocol and facilitating communication
 /// thereafter
@@ -66,7 +68,7 @@ pub async fn upgrade_connection(
             },
 
             Some(server_msg) = server_msg_rx.recv() => {
-                log::info!("Sending msg from server backend: {}", server_msg.name());
+                log::info!("Forwarding msg from server backend: {}", server_msg.name());
 
                 let _ = ws_write.send(server_msg.as_msg()).await;
             },
@@ -147,5 +149,6 @@ fn handle_client_msg(msg: ClientMsg, client: &mut Client) -> ServerMsg {
                 Err(e) => ServerMsg::Error { msg: e.to_string() },
             }
         }
+        ClientMsg::CheckServer => ServerMsg::Success,
     }
 }

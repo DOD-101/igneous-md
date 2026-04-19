@@ -5,15 +5,21 @@
 //!
 //! Each client connection is spawned as its own task, sharing a single [Config] between all clients.
 
+use futures_util::{SinkExt, StreamExt};
 use std::sync::{Arc, RwLock};
 use tokio::{
     net::TcpListener,
     sync::{mpsc, oneshot},
 };
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 use crate::{
     config::Config,
-    ws::{msg::ServerMsg, upgrade_connection},
+    paths,
+    ws::{
+        msg::{AsMsg, ClientMsg, ServerMsg},
+        upgrade_connection,
+    },
 };
 
 /// Handle to the running server
@@ -46,6 +52,7 @@ impl ServerHandle {
     /// Stop the server
     pub fn stop(self) -> Result<(), ()> {
         log::info!("Server exiting");
+        paths::attempt_delete_port_file();
         self.stop_tx.send(())
     }
 
@@ -65,17 +72,15 @@ impl ServerHandle {
 ///
 /// Binds to `127.0.0.1:{port}` and listens for incoming connections.
 ///
-/// The server writes the port it is listening on to `/tmp/ingeous-md` since if `port` is 0 it will
-/// randomly select a port to use.
+/// The server writes the port it is listening on to [paths::SERVER_PORT_FILE] since if `port` is 0
+/// it will randomly select a port to use.
 pub async fn launch_server(port: u16, config: Config) -> Result<ServerHandle, std::io::Error> {
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
     let tcp_port = listener.local_addr()?.port();
 
     let (stop_tx, mut stop_rx) = oneshot::channel::<()>();
 
-    if let Err(e) = std::fs::write("/tmp/ingeous-md", tcp_port.to_string()) {
-        log::error!("Failed to write port to tmp file: {e}")
-    };
+    paths::attempt_write_port_file(tcp_port);
 
     let config = Arc::new(RwLock::new(config));
     let clients: Arc<RwLock<Vec<mpsc::UnboundedSender<ServerMsg>>>> = Arc::default();
@@ -99,9 +104,31 @@ pub async fn launch_server(port: u16, config: Config) -> Result<ServerHandle, st
         }
     });
 
+    log::info!("Server launched on port {tcp_port}!");
+
     Ok(ServerHandle {
         stop_tx,
         port: tcp_port,
         clients: Arc::clone(&clients),
+    })
+}
+
+/// Test if there is a server running on the given port
+pub async fn test_server_connection(port: u16) -> bool {
+    let Ok((mut socket, _)) =
+        tokio_tungstenite::connect_async(format!("ws://127.0.0.1:{port}/ws/?md_path=/dev/null"))
+            .await
+    else {
+        return false;
+    };
+
+    socket.send(ClientMsg::CheckServer.as_msg()).await.unwrap();
+
+    socket.select_next_some().await.is_ok_and(|msg| {
+        if let WsMessage::Text(str) = msg {
+            return serde_json::from_str::<ServerMsg>(&str).is_ok_and(|v| v.is_success());
+        }
+
+        false
     })
 }
