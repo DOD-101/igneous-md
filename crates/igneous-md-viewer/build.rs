@@ -85,18 +85,20 @@ fn main() {
 
     let dist_location = out_dir.join("./dist.js");
 
-    assert!(Command::new("esbuild")
-        .args([
-            "--bundle",
-            "./src/main.js",
-            format!("--outfile={}", dist_location.display()).as_str(),
-            "--minify"
-        ])
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap()
-        .success());
+    assert!(
+        Command::new("esbuild")
+            .args([
+                "--bundle",
+                "./src/main.js",
+                format!("--outfile={}", dist_location.display()).as_str(),
+                "--minify"
+            ])
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap()
+            .success()
+    );
 
     let src_dir = PathBuf::from("./src");
 

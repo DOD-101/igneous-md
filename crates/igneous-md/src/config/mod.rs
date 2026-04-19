@@ -88,13 +88,12 @@ impl Config {
 
         let mut watcher =
             notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-                if let Ok(event) = event {
-                    if !event.kind.is_access() {
-                        log::info!("Config update");
-                        let _ = sender.send(event);
-                        *css_entries.lock().unwrap() =
-                            crate::paths::read_css_dir(&css_dir).unwrap();
-                    }
+                if let Ok(event) = event
+                    && !event.kind.is_access()
+                {
+                    log::info!("Config update");
+                    let _ = sender.send(event);
+                    *css_entries.lock().unwrap() = crate::paths::read_css_dir(&css_dir).unwrap();
                 }
             })?;
 

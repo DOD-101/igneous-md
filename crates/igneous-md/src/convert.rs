@@ -2,8 +2,8 @@
 //!
 //! We also need to do some post processing [post_process_html] to make the resulting markdown work
 //! for our application.
-use kuchikiki::{traits::*, NodeRef};
-use markdown::{to_html_with_options, Options};
+use kuchikiki::{NodeRef, traits::*};
+use markdown::{Options, to_html_with_options};
 use markup5ever::{interface::QualName, local_name, namespace_url, ns};
 use regex::Regex;
 use std::{
@@ -283,7 +283,7 @@ fn post_process_html(html: String) -> String {
 #[cfg(test)]
 mod test {
     use super::md_to_html;
-    use kuchikiki::{traits::*, ElementData, NodeDataRef};
+    use kuchikiki::{ElementData, NodeDataRef, traits::*};
 
     #[test]
     fn links() {
