@@ -6,9 +6,15 @@ use std::path::PathBuf;
 use crate::paths::DEFAULT_CONFIG_DIR;
 
 const VERSION: &str = git_version!(
-    args = ["--always", "--dirty=-modified"],
+    args = ["--always", "--dirty=-dirty"],
     prefix = concat!(env!("CARGO_PKG_VERSION"), " ("),
-    suffix = ")"
+    suffix = ")",
+    fallback = concat!(
+        env!("CARGO_PKG_VERSION"),
+        " (",
+        env!("GIT_VERSION_COMMIT"),
+        ")"
+    )
 );
 
 /// Top Level Struct of the CLI

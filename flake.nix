@@ -4,10 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
+    naersk = {
+      url = "github:nix-community/naersk";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
-    crane.url = "github:ipetkov/crane";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -15,45 +15,20 @@
     {
       self,
       nixpkgs,
-      crane,
+      naersk,
       flake-utils,
-      rust-overlay,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
-          inherit system overlays;
+          inherit system;
         };
 
         inherit (pkgs) lib;
 
-        craneLib = (crane.mkLib pkgs).overrideScope (
-          final: prev: {
-            # We override the behavior of `mkCargoDerivation` by adding a wrapper which
-            # will set a default value of `CARGO_PROFILE` when not set by the caller.
-            # This change will automatically be propagated to any other functions built
-            # on top of it (like `buildPackage`, `cargoBuild`, etc.)
-            mkCargoDerivation =
-              args:
-              prev.mkCargoDerivation (
-                {
-                  CARGO_PROFILE = "dev";
-                }
-                // args
-              );
-          }
-        );
-
-        src = lib.fileset.toSource rec {
-          root = ./.;
-          fileset = lib.fileset.unions [
-            (lib.fileset.maybeMissing ./crates)
-            (craneLib.fileset.commonCargoSources root)
-          ];
-        };
+        naersk' = pkgs.callPackage naersk { };
 
         parseVendorEnv =
           file:
@@ -87,8 +62,7 @@
         };
 
         commonArgs = {
-          inherit src;
-          strictDeps = true;
+          src = ./.;
 
           buildInputs = with pkgs; [
             openssl
@@ -104,147 +78,122 @@
             webkitgtk_6_0
             noto-fonts-color-emoji
             esbuild
-
+            git
             wrapGAppsHook4
-
-            # only needed for testing
-
-            cargo-all-features
           ];
 
           IGNEOUS_VENDOR_ONLY = "1";
+          GIT_VERSION_COMMIT = self.rev or "dirty-nix-build";
 
-          postPatch = ''
+          preConfigure = ''
             cp ${vendoredHighlightJs} crates/igneous-md-viewer/src/highlight.min.js
             cp ${vendoredMathjaxJs} crates/igneous-md-viewer/src/tex-mml-svg.js
+            cp ${./vendor.env} vendor.env
           '';
         };
 
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        buildWorkspacePackage =
+          pname: release:
+          naersk'.buildPackage (
+            commonArgs
+            // {
+              pname = pname;
+              inherit release;
+              cargoBuildOptions =
+                old:
+                old
+                ++ [
+                  "-p"
+                  pname
+                ];
+            }
+          );
 
-        individualCrateArgs = commonArgs // {
-          inherit cargoArtifacts;
-          inherit (craneLib.crateNameFromCargoToml { inherit src; }) version;
-        };
+        igneous-md = buildWorkspacePackage "igneous-md" false;
+        igneous-md-release = buildWorkspacePackage "igneous-md" true;
 
-        fileSetForCrate =
-          crate:
-          lib.fileset.toSource {
-            root = ./.;
-            fileset = lib.fileset.unions [
-              ./Cargo.toml
-              ./Cargo.lock
-              ./vendor.env
-              (craneLib.fileset.commonCargoSources ./crates/igneous-md-viewer)
-              (lib.fileset.maybeMissing ./crates/igneous-md-viewer/src)
-              (lib.fileset.maybeMissing ./assets)
-              crate
-            ];
-          };
+        igneous-md-viewer = buildWorkspacePackage "igneous-md-viewer" false;
+        igneous-md-viewer-release = buildWorkspacePackage "igneous-md-viewer" true;
 
-        igneous-md = craneLib.buildPackage (
-          individualCrateArgs
+        buildCheck =
+          name: mode: cargoExtraArgs: release:
+          naersk'.buildPackage (
+            commonArgs
+            // {
+              inherit mode release;
+              pname = name;
+              cargoBuildOptions = old: old ++ cargoExtraArgs;
+            }
+          );
+
+        workspace-clippy = naersk'.buildPackage (
+          commonArgs
           // {
-            pname = "igneous-md";
-            cargoExtraArgs = "-p igneous-md";
-            src = fileSetForCrate ./crates/igneous-md;
+            pname = "workspace-clippy";
+            mode = "clippy";
+            cargoBuildOptions =
+              old:
+              old
+              ++ [
+                "--all-targets"
+              ];
           }
         );
 
-        igneous-md-viewer = craneLib.buildPackage (
-          individualCrateArgs
+        workspace-doc = naersk'.buildPackage (
+          commonArgs
           // {
-            pname = "igneous-md-viewer";
-            cargoExtraArgs = "-p igneous-md-viewer";
-            src = fileSetForCrate ./crates/igneous-md-viewer;
+            pname = "workspace-doc";
+            mode = "build";
+            doDoc = true;
+            copyDocsToSeparateOutput = true;
           }
         );
 
-        igneous-md-release = craneLib.buildPackage (
-          individualCrateArgs
-          // {
-            pname = "igneous-md";
-            cargoExtraArgs = "-p igneous-md";
-            src = fileSetForCrate ./crates/igneous-md;
+        workspace-doc-test = buildCheck "workspace-doc-test" "test" [ "--doc" ] false;
 
-            CARGO_PROFILE = "release";
+        workspace-fmt = naersk'.buildPackage (
+          commonArgs
+          // {
+            pname = "workspace-fmt";
+            mode = "fmt";
+            nativeBuildInputs = commonArgs.nativeBuildInputs ++ [ pkgs.rustfmt ];
           }
         );
+
+        workspace-cargo-test-all-features = buildCheck "workspace-test-all-features" "test" [
+          "--all-features"
+        ] false;
 
       in
       {
         checks = {
-          # Build the crate as part of `nix flake check` for convenience
-          inherit igneous-md igneous-md-viewer;
-
-          # Run clippy (and deny all warnings) on the crate source,
-          # again, reusing the dependency artifacts from above.
-          #
-          # Note that this is done as a separate derivation so that
-          # we can block the CI if there are issues here, but not
-          # prevent downstream consumers from building our crate by itself.
-          workspace-clippy = craneLib.cargoClippy (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              cargoClippyExtraArgs = "--all-targets -- --deny warnings";
-            }
-          );
-
-          workspace-doc = craneLib.cargoDoc (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-            }
-          );
-
-          workspace-doc-test = craneLib.cargoDocTest (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-            }
-          );
-
-          # Check formatting
-          workspace-fmt = craneLib.cargoFmt {
-            inherit src;
-          };
-
-          # default = workspace-fmt;
-
+          inherit
+            igneous-md
+            igneous-md-viewer
+            workspace-clippy
+            workspace-doc
+            workspace-doc-test
+            workspace-fmt
+            workspace-cargo-test-all-features
+            ;
         };
 
         packages = rec {
-          inherit igneous-md igneous-md-viewer igneous-md-release;
+          inherit
+            igneous-md
+            igneous-md-release
+            igneous-md-viewer
+            igneous-md-viewer-release
+            ;
           default = igneous-md;
-
-          workspace-cargo-test-all-features = craneLib.mkCargoDerivation (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              buildPhaseCargoCommand = "RUSTFLAGS=\"-D warnings\" cargo test-all-features";
-              nativeBuildInputs = commonArgs.nativeBuildInputs;
-            }
-          );
-
         };
 
-        apps = rec {
-          igneous-md-app = flake-utils.lib.mkApp {
-            drv = igneous-md;
-          };
-
-          igneous-md-viewer-app = flake-utils.lib.mkApp {
-            drv = igneous-md-viewer;
-          };
-
-          default = igneous-md-app;
-        };
-
-        devShells.default = craneLib.devShell {
-          # Inherit inputs from checks.
-          checks = self.checks.${system};
+        devShells.default = pkgs.mkShell {
+          inputsFrom = [ self.checks.${system}.workspace-clippy ];
           packages = with pkgs; [
+            cargo
+            rustc
             prek
             typos-lsp
             curl
