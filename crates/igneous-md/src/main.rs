@@ -99,7 +99,17 @@ async fn run() -> Result<(), Error> {
             loop {
                 if let Some(tx) = handle.get_client_sender(0) {
                     tx.send(ws::msg::ServerMsg::Export {
-                        path: export_path.unwrap_or(default_export_path),
+                        path: export_path
+                            .map(|p| {
+                                if !p.is_absolute() {
+                                    return std::env::current_dir()
+                                        .expect("Failed to get cwd!")
+                                        .join(p);
+                                }
+
+                                p
+                            })
+                            .unwrap_or(default_export_path),
                     })
                     .map_err(|_| Error::HeadlessClientLaunchFailed)?;
 
