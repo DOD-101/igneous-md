@@ -79,8 +79,6 @@ and then
 > [!IMPORTANT]
 > This will build the project from source (see build dependencies)
 
-You must also install `webkit-gtk 2.3x+`.
-
 ### Building from source
 
 1. Clone the repo `git clone https://github.com/DOD-101/igneous-md.git`
@@ -121,15 +119,11 @@ igneous-md view path/to/file.md
 
 > Or at least questions I think people could ask
 
-1. How do I view my markdown in the browser?
-
-   Simply pass the `--browser` flag. For all options run `igneous-md --help`
-
    <!-- TODO: Add full --help auto-generated output -->
 
-2. How can I change the order of color schemes?
+1. How can I change the order of color schemes?
 
-   Prefix the css file names with numbers e.g:
+   The order of the css files in alphabetical. To change the order slmply prefix the css file names with numbers (or other charcters) to make them apear further up in the list e.g:
 
    ```
    00_github-dark.css
@@ -183,6 +177,8 @@ end, {})
 ## Converting md to html
 
 `igneous-md convert <PATH>`
+
+This will export the files to `~/.config/igneous-md/`. To change the output path add `-o <PATH>`
 
 ## A markdown viewer Framework?
 
