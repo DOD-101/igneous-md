@@ -123,7 +123,7 @@ igneous-md view path/to/file.md
 
 1. How can I change the order of color schemes?
 
-   The order of the css files in alphabetical. To change the order slmply prefix the css file names with numbers (or other charcters) to make them apear further up in the list e.g:
+   The order of the css files in alphabetical. To change the order slmply prefix the css file names with numbers (or other characters) to make them appear further up in the list e.g:
 
    ```
    00_github-dark.css
