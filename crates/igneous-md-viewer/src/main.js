@@ -18,7 +18,7 @@ MathJax = {
                     : "$" + el.textContent + "$";
                 el.replaceWith(wrapper);
             });
-            MathJax.typesetPromise();
+            MathJax.typeset();
         },
     },
 };
