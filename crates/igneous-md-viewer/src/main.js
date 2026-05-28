@@ -50,8 +50,7 @@ document.addEventListener("keydown", (event) => {
         case "e":
             ws.send(
                 JSON.stringify({
-                    t: "ExportHtml",
-                    c: {},
+                    t: "RequestExport",
                 }),
             );
             break;
