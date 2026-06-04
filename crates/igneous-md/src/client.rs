@@ -121,14 +121,7 @@ impl Client {
         self.md_path = self.initial_md_path.clone();
     }
 
-    /// Getter function for [Self::md_path]
-    #[allow(dead_code)]
-    pub fn get_md_path(&self) -> PathBuf {
-        self.md_path.clone()
-    }
-
     /// [Self::get_latest_html_if_changed], but will always return html.
-    #[allow(dead_code)]
     pub fn get_latest_html(&mut self) -> io::Result<String> {
         Ok(self
             .get_latest_html_if_changed()?
