@@ -28,6 +28,8 @@ Igneous-md is a [gfm](https://docs.github.com/en/get-started/writing-on-github/g
 
     - [ ] Editor integration via plugin (Neovim)
 
+- [ ] Make exported pdfs background stay consistent on the last page
+
 - [x] Fix bug relating to indented GFM notes
 
 - [x] Add github theme closer to github itself (limit width and center content)
