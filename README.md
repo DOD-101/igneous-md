@@ -117,21 +117,6 @@ and then
 igneous-md view path/to/file.md
 ```
 
-## FAQ
-
-> Or at least questions I think people could ask
-
-   <!-- TODO: Add full --help auto-generated output -->
-
-1. How can I change the order of color schemes?
-
-   The order of the css files in alphabetical. To change the order slmply prefix the css file names with numbers (or other characters) to make them appear further up in the list e.g:
-
-   ```
-   00_github-dark.css
-   01_github-light.css
-   ```
-
 ## Configuration
 
 To get started run `igneous-md generate-config` (will run by automatically if you view a file without the config dir `~/.config/igneous-md/`)
@@ -209,6 +194,18 @@ If you want to only use igneous-md for this be sure to disable the `viewer` carg
 
 For an example look at the implementation of `igneous-md-viewer` in `./crates/igneous-md-viewer/`.
 
+## FAQ
+
+> Or at least questions I think people could ask
+
+1. How can I change the order of color schemes?
+
+   The order of the css files in alphabetical. To change the order simply prefix the css file names with numbers (or other characters) to make them appear further up in the list e.g:
+
+   ```
+   00_github-dark.css
+   01_github-light.css
+   ```
 
 ## Attribution
 
