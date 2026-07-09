@@ -63,6 +63,7 @@
 
         commonArgs = {
           src = ./.;
+          version = (fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
 
           buildInputs = with pkgs; [
             openssl
@@ -97,7 +98,7 @@
           naersk'.buildPackage (
             commonArgs
             // {
-              pname = pname;
+              name = pname;
               inherit release;
               cargoBuildOptions =
                 old:
