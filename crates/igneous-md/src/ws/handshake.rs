@@ -1,14 +1,14 @@
 //! WebSocket handshake and query parameter extraction.
 //!
 //! The handshake validates the incoming request query parameters and returns
-//! a [WebSocketStream] along with the parsed [WsQueryParams].
+//! a [WebSocketStream] along with the parsed [WsQueryParams]. If validation
+//! fails, the connector receives an HTTP 400 response explaining why.
 
-// TODO: This requires improved logging
-
-use http::{Request, Response};
+use http::{Request, Response, StatusCode};
 use thiserror::Error;
 use tokio::net::TcpStream;
-use tokio::sync::oneshot;
+use tokio_tungstenite::tungstenite::Error as WsError;
+use tokio_tungstenite::tungstenite::error::ProtocolError;
 use tokio_tungstenite::{WebSocketStream, accept_hdr_async};
 
 /// Query parameters received during the WebSocket handshake.
@@ -20,7 +20,7 @@ pub struct WsQueryParams {
     pub md_path: String,
 }
 
-/// Errors that can occur during WebSocket handshake validation.
+/// Errors that can occur while validating the handshake's query parameters.
 #[derive(Debug, Copy, Clone, Error)]
 pub enum WsValidationError {
     /// No query string was present in the request URI.
@@ -29,6 +29,34 @@ pub enum WsValidationError {
     /// The required `md_path` parameter was not found.
     #[error("Missing required parameter: md_path")]
     MissingMdPath,
+    /// `update_rate` was present but not a valid, non-negative integer.
+    #[error("Invalid value for parameter: update_rate")]
+    InvalidUpdateRate,
+}
+
+/// Errors that can occur while performing a WebSocket handshake.
+#[derive(Debug, Error)]
+pub enum HandshakeError {
+    /// The request's query parameters failed validation. The connector will
+    /// have already received an HTTP 400 response explaining the problem.
+    #[error("handshake query validation failed: {0}")]
+    Validation(#[from] WsValidationError),
+    /// The underlying WebSocket protocol handshake failed (e.g. bad
+    /// upgrade headers, I/O error, connection reset).
+    #[error("websocket handshake failed: {0}")]
+    Protocol(#[from] WsError),
+}
+
+impl HandshakeError {
+    /// Returns true if the error was caused by the client not wanting to upgrade to ws
+    pub fn no_upgrade(&self) -> bool {
+        matches!(
+            self,
+            HandshakeError::Protocol(WsError::Protocol(
+                ProtocolError::MissingConnectionUpgradeHeader
+            ))
+        )
+    }
 }
 
 impl WsQueryParams {
@@ -46,7 +74,12 @@ impl WsQueryParams {
 
         for (key, value) in form_urlencoded::parse(query.as_bytes()) {
             match key.as_ref() {
-                "update_rate" => update_rate = value.parse::<u64>().ok(),
+                "update_rate" => {
+                    let parsed = value
+                        .parse::<u64>()
+                        .map_err(|_| WsValidationError::InvalidUpdateRate)?;
+                    update_rate = Some(parsed);
+                }
                 "md_path" => md_path = Some(value.into_owned()),
                 _ => {}
             }
@@ -61,40 +94,50 @@ impl WsQueryParams {
     }
 }
 
-/// Create a callback for [accept_hdr_async] that validates query parameters.
-///
-/// The callback sends the parsed result through the oneshot channel and always
-/// returns `Ok(response)`. Errors are communicated only via the channel.
-#[allow(clippy::type_complexity)]
-#[allow(
-    clippy::result_large_err,
-    reason = "Return type is required by callback parameter of tokio_tungstenite."
-)]
-pub fn ws_callback(
-    sender: oneshot::Sender<Result<WsQueryParams, WsValidationError>>,
-) -> impl FnOnce(&Request<()>, Response<()>) -> Result<Response<()>, Response<Option<String>>> {
-    move |request, response| {
-        let result = WsQueryParams::from_request(request);
-        let _ = sender.send(result);
-        Ok(response)
-    }
+/// Build the HTTP error response sent back to the connector when query
+/// validation fails, so it fails the handshake with a real 400 instead of
+/// silently upgrading to a socket that will be immediately closed.
+fn rejection_response(err: WsValidationError) -> Response<Option<String>> {
+    let mut response = Response::new(Some(err.to_string()));
+    *response.status_mut() = StatusCode::BAD_REQUEST;
+    response
 }
 
 /// Perform the WebSocket handshake on a TCP stream.
 ///
 /// Returns the [WebSocketStream] and the validated [WsQueryParams] extracted
-/// from the request query string.
+/// from the request query string. If the query parameters are invalid, the
+/// connector receives an HTTP 400 response during the handshake itself
+/// (rather than a socket that opens and is then torn down) and this
+/// function returns [HandshakeError::Validation]. Any lower-level protocol
+/// or I/O failure is returned as [HandshakeError::Protocol].
+#[allow(
+    clippy::result_large_err,
+    reason = "Return type is required by callback parameter of tokio_tungstenite."
+)]
 pub async fn perform_handshake(
     tcp: TcpStream,
-) -> Result<(WebSocketStream<TcpStream>, WsQueryParams), WsValidationError> {
-    let (sender, receiver) = oneshot::channel();
-    let callback = ws_callback(sender);
+) -> Result<(WebSocketStream<TcpStream>, WsQueryParams), HandshakeError> {
+    let mut params: Option<Result<WsQueryParams, WsValidationError>> = None;
 
-    let ws_stream = accept_hdr_async(tcp, callback)
-        .await
-        .map_err(|_| WsValidationError::MissingQuery)?;
+    let callback = |request: &Request<()>, response: Response<()>| match WsQueryParams::from_request(
+        request,
+    ) {
+        Ok(parsed) => {
+            params = Some(Ok(parsed));
+            Ok(response)
+        }
+        Err(err) => {
+            params = Some(Err(err));
+            Err(rejection_response(err))
+        }
+    };
 
-    let params = receiver.await.expect("Callback must send result")?;
+    let ws_stream = accept_hdr_async(tcp, callback).await?;
+
+    // If accept_hdr_async succeeded, the callback ran and returned `Ok`,
+    // so `params` is always `Some(Ok(_))` here.
+    let params = params.expect("callback must run before accept_hdr_async resolves")?;
 
     Ok((ws_stream, params))
 }

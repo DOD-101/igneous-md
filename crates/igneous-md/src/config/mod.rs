@@ -7,14 +7,9 @@
 //!
 //! The main item of this config is the [Config] struct, but it also contains [generate] to
 //! generate the default config on disk.
-use notify::Watcher;
-use std::{
-    io,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
-use tokio::sync::broadcast;
+use std::{io, path::PathBuf};
 
+use crate::paths;
 pub mod generate;
 
 /// A CSS entry with its path and content
@@ -26,94 +21,23 @@ pub struct CssEntry {
     pub content: String,
 }
 
-/// Struct containing all information relating to the config, including the css files.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// Where the config is located on disk
-    config_dir: PathBuf,
+    pub config_dir: PathBuf,
     /// List of css entries within the [Config::css_dir]
     ///
     /// Each entry contains the path (starting with `/css/`) and the file content.
-    css_entries: Arc<Mutex<Vec<CssEntry>>>,
-    /// Sender for [notify::Event]s
-    pub update_sender: tokio::sync::broadcast::Sender<notify::Event>,
-    /// The watcher, if it is running
-    watcher: Option<notify::RecommendedWatcher>,
+    pub css_entries: Vec<CssEntry>,
 }
 
 impl Config {
-    /// Attempt to create a new [Config]
-    ///
-    /// This may fail, since to set [Config::css_entries] we need to read from the Filesystem.
-    pub fn new(config_dir: PathBuf) -> io::Result<Self> {
+    /// Creates a new [`Config`] reading the [`Self::css_entries`] from disk
+    pub fn new_from_disk(config_dir: PathBuf) -> io::Result<Self> {
         Ok(Self {
-            css_entries: Arc::new(Mutex::new(crate::paths::read_css_dir(
-                &config_dir.join("css/"),
-            )?)),
+            css_entries: paths::read_css_dir(&paths::css_dir(&config_dir))?,
             config_dir,
-            update_sender: broadcast::channel(1).0,
-            watcher: None,
         })
-    }
-
-    /// Get [Self::css_entries]
-    pub fn get_css_entries_clone(&self) -> Vec<CssEntry> {
-        self.css_entries.lock().unwrap().clone()
-    }
-
-    /// How many css entries there are
-    pub fn css_entries_len(&self) -> usize {
-        self.css_entries.lock().unwrap().len()
-    }
-
-    /// Directory where the css files are located
-    pub fn css_dir(&self) -> PathBuf {
-        self.config_dir.join("css")
-    }
-
-    /// Directory where the css files for code highlighting are located
-    pub fn code_highlight_dir(&self) -> PathBuf {
-        self.config_dir.join("css/hljs")
-    }
-
-    /// Start watching the [Self::config_dir]
-    ///
-    /// After this [Self::update_sender] will start sending events.
-    pub fn start_watching(&mut self) -> notify::Result<()> {
-        let config_dir = self.config_dir.clone();
-        let css_dir = self.css_dir();
-        let css_entries = Arc::clone(&self.css_entries);
-
-        let sender = self.update_sender.clone();
-
-        let mut watcher =
-            notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-                if let Ok(event) = event
-                    && !event.kind.is_access()
-                {
-                    log::info!("Config update");
-                    let _ = sender.send(event);
-                    *css_entries.lock().unwrap() = crate::paths::read_css_dir(&css_dir).unwrap();
-                }
-            })?;
-
-        log::info!("Watching config dir: {}", config_dir.to_string_lossy());
-
-        watcher
-            .watch(&config_dir, notify::RecursiveMode::Recursive)
-            .unwrap();
-
-        self.watcher = Some(watcher);
-
-        Ok(())
-    }
-
-    /// Get the path to export a file
-    pub fn export_path(&self) -> PathBuf {
-        self.config_dir.join(format!(
-            "export-{}.pdf",
-            chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
-        ))
     }
 }
 
@@ -136,9 +60,7 @@ impl Config {
 
         Self {
             config_dir: PathBuf::new(),
-            css_entries: Arc::new(Mutex::new(css_entries)),
-            update_sender: broadcast::channel(1).0,
-            watcher: None,
+            css_entries,
         }
     }
 }

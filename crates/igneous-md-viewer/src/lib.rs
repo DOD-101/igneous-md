@@ -149,6 +149,7 @@ pub struct Address<'a> {
     update_rate: u64,
     css: Option<&'a str>,
     path: &'a str,
+    export: Option<&'a str>,
 }
 
 impl<'a> Address<'a> {
@@ -158,6 +159,7 @@ impl<'a> Address<'a> {
         update_rate: u64,
         css: Option<&'a str>,
         path: &'a str,
+        export: Option<&'a str>,
     ) -> Self {
         Self {
             host,
@@ -165,6 +167,7 @@ impl<'a> Address<'a> {
             update_rate,
             css,
             path,
+            export,
         }
     }
 }
@@ -173,12 +176,15 @@ impl Display for Address<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "http://{}:{}/?update_rate={}&path={}{}",
+            "http://{}:{}/?update_rate={}&path={}{}{}",
             self.host,
             self.port,
             self.update_rate,
             self.path,
             self.css.map(|s| format!("&css={}", s)).unwrap_or_default(),
+            self.export
+                .map(|s| format!("&export={}", s))
+                .unwrap_or_default(),
         )
     }
 }

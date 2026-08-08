@@ -29,6 +29,7 @@ fn main() {
         cli.update_rate,
         cli.css.as_deref(),
         cli.path.as_str(),
+        None,
     );
 
     if cli.browser {

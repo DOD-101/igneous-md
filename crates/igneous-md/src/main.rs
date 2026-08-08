@@ -26,7 +26,7 @@ mod ws;
 use cli::{Action, Cli};
 use errors::Error;
 
-use crate::errors::AppResult;
+use crate::{config::Config, errors::AppResult, paths::attempt_delete_port_file};
 
 #[cfg(feature = "viewer")]
 use {
@@ -38,7 +38,7 @@ use std::{
     io::{self, Write},
     time::Duration,
 };
-use tokio::time::sleep;
+use tokio::{net::TcpListener, task::AbortHandle, time::sleep};
 
 #[tokio::main]
 async fn main() -> AppResult {
@@ -53,17 +53,6 @@ async fn run() -> Result<(), Error> {
         .init()
         .expect("Failed to init Logger.");
 
-    let config = match config::Config::new(cli.config) {
-        Ok(mut c) => {
-            c.start_watching().map_err(Error::WatchConfigDirFailed)?;
-
-            c
-        }
-        Err(e) => {
-            return Err(Error::ConfigCreationFailed(e));
-        }
-    };
-
     match cli.command {
         #[cfg(feature = "viewer")]
         Action::Convert {
@@ -71,77 +60,63 @@ async fn run() -> Result<(), Error> {
             css,
             export_path,
         } => {
-            let default_export_path = config.export_path();
-            let handle = server::launch_server(0, config)
-                .await
-                .map_err(Error::ServerLaunchFailed)?;
+            let default_export_path = paths::export_path(&cli.config);
 
-            let tcp_port = handle.port();
+            let port = get_free_port().await.unwrap();
+
+            let config = Config::new_from_disk(cli.config.clone())
+                .map_err(Error::ConfigFromDiskFailed)?
+                .into();
+            tokio::spawn(async move {
+                server::Server::new(config).start(port).await;
+            });
 
             let path = path.to_string_lossy().to_string();
             let css = css.map(|v| v.to_string_lossy().to_string());
 
+            let export_path = export_path.map_or(default_export_path, |p| {
+                if !p.is_absolute() {
+                    return std::env::current_dir().expect("Failed to get cwd!").join(p);
+                }
+
+                p
+            });
+
             thread::spawn(move || {
-                let address =
-                    Address::new("localhost", tcp_port, 1000, css.as_deref(), path.as_str());
+                let export_str: String =
+                    form_urlencoded::byte_serialize(export_path.to_string_lossy().as_bytes())
+                        .collect();
+                let address = Address::new(
+                    "localhost",
+                    port,
+                    1000,
+                    css.as_deref(),
+                    path.as_str(),
+                    Some(&export_str),
+                );
                 let client = Viewer::new(address, true);
 
                 client.start()
             });
 
-            // TODO: When we add proper ClientHandles in server.rs (see TODO there) we can also
-            // improve the code here to no longer rely on these timings
-
-            // wait for client to start
-            sleep(Duration::from_millis(1000)).await;
-
-            let mut launch_tries = 0;
-            loop {
-                if let Some(tx) = handle.get_client_sender(0) {
-                    tx.send(ws::msg::ServerMsg::Export {
-                        path: export_path
-                            .map(|p| {
-                                if !p.is_absolute() {
-                                    return std::env::current_dir()
-                                        .expect("Failed to get cwd!")
-                                        .join(p);
-                                }
-
-                                p
-                            })
-                            .unwrap_or(default_export_path),
-                    })
-                    .map_err(|_| Error::HeadlessClientLaunchFailed)?;
-
-                    break;
-                }
-                launch_tries += 1;
-
-                if launch_tries > 5 {
-                    log::error!(
-                        "Failed to start headless client! Cannot convert markdown to pdf. "
-                    );
-                    return Err(Error::HeadlessClientLaunchFailed);
-                }
-
-                log::warn!("Headless client hasn't started. Waiting further.");
-
-                sleep(Duration::from_millis(1000)).await;
-            }
+            // TODO: get rid of this fragile timing (also see main.js)
 
             // wait for printing to complete
-            sleep(Duration::from_millis(1000)).await;
+            sleep(Duration::from_secs(1)).await;
+
+            // TODO: add check if printing succeeded
 
             Ok(())
         }
         Action::GenerateConfig { overwrite } => {
-            if config.css_dir().exists() && !overwrite {
+            if paths::css_dir(&cli.config).exists() && !overwrite {
                 return Err(Error::ConfigDirExists);
             }
 
-            fs::create_dir_all(config.code_highlight_dir()).map_err(Error::ConfigGenFailed)?;
+            fs::create_dir_all(paths::code_highlight_dir(&cli.config))
+                .map_err(Error::ConfigGenFailed)?;
 
-            config::generate::generate_config_files(&config.css_dir()).await?;
+            config::generate::generate_config_files(&paths::css_dir(&cli.config)).await?;
 
             Ok(())
         }
@@ -168,9 +143,10 @@ async fn run() -> Result<(), Error> {
             // creating the dirs.
 
             // Check if the config exists
-            if !config.css_dir().exists() {
+            if !paths::css_dir(&cli.config).exists() {
                 // Always at least create the dir
-                fs::create_dir_all(config.code_highlight_dir()).map_err(Error::ConfigGenFailed)?;
+                fs::create_dir_all(paths::code_highlight_dir(&cli.config))
+                    .map_err(Error::ConfigGenFailed)?;
 
                 print!(
                     "No config found. Would you like to generate the default config? [(y)es/(N)o]: "
@@ -190,7 +166,8 @@ async fn run() -> Result<(), Error> {
                     .next()
                     .is_some_and(|c| c == 'y')
                 {
-                    config::generate::generate_config_files(&config.css_dir()).await?;
+                    // TODO: this is confusing, we generate config files, but place them in the css dir
+                    config::generate::generate_config_files(&paths::css_dir(&cli.config)).await?;
                 }
             }
 
@@ -218,17 +195,21 @@ async fn run() -> Result<(), Error> {
                 }
             }
 
-            let mut handle = None;
+            let mut server_handle: Option<AbortHandle> = None;
             let tcp_port = if let Some(p) = existing_port {
                 p
             } else {
-                let h = server::launch_server(port, config)
-                    .await
-                    .map_err(Error::ServerLaunchFailed)?;
+                let p = get_free_port().await.unwrap();
 
-                let p = h.port();
-
-                handle = Some(h);
+                let config = Config::new_from_disk(cli.config.clone())
+                    .map_err(Error::ConfigFromDiskFailed)?
+                    .into();
+                server_handle = Some(
+                    tokio::spawn(async move {
+                        server::Server::new(config).start(p).await;
+                    })
+                    .abort_handle(),
+                );
 
                 p
             };
@@ -250,6 +231,7 @@ async fn run() -> Result<(), Error> {
                         update_rate,
                         css.as_deref(),
                         path.as_str(),
+                        None,
                     );
                     let client = Viewer::new(address, false);
 
@@ -260,7 +242,7 @@ async fn run() -> Result<(), Error> {
             };
 
             // exit if we didn't start the server
-            let Some(handle) = handle else {
+            let Some(handle) = server_handle else {
                 // wait on the viewer if it was started (see todo above)
                 #[cfg(feature = "viewer")]
                 {
@@ -273,9 +255,22 @@ async fn run() -> Result<(), Error> {
 
             tokio::signal::ctrl_c().await.map_err(Error::SignalFailed)?;
 
-            handle.stop().expect("Failed to stop server properly.");
+            handle.abort();
+
+            attempt_delete_port_file();
 
             Ok(())
         }
     }
+}
+
+/// Get a free tcp port
+///
+/// Since the port is not bound when returned, users should be quick to use this value otherwise
+/// risking a TOCTOU error.
+async fn get_free_port() -> std::io::Result<u16> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let port = listener.local_addr()?.port();
+    Ok(port)
+    // listener is dropped here, freeing the port
 }

@@ -126,3 +126,21 @@ pub fn attempt_write_port_file(port: u16) {
         log::warn!("Failed to write tmp port file: {e}")
     }
 }
+
+/// Directory where the css files are located, based off of the given config dir
+pub fn css_dir(config_dir: &Path) -> PathBuf {
+    config_dir.join("css")
+}
+
+/// Directory where the css files for code highlighting are located, based off of the given config dir
+pub fn code_highlight_dir(config_dir: &Path) -> PathBuf {
+    config_dir.join("css/hljs")
+}
+
+/// Get the path to export a file, based off of the given config dir
+pub fn export_path(config_dir: &Path) -> PathBuf {
+    config_dir.join(format!(
+        "export-{}.pdf",
+        chrono::Local::now().format("%y-%m-%d-%H-%M-%S"),
+    ))
+}

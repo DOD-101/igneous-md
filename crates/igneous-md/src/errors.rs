@@ -26,10 +26,15 @@ pub enum Error {
     /// Error when the config dir already exists
     #[error("The config dir already exists. Run with -o / --overwrite to continue regardless.")]
     ConfigDirExists,
-    /// Headless client failed to launch
-    #[error("The headless client failed required for conversion to launch.")]
-    HeadlessClientLaunchFailed,
-    /// The curl command was not found in path
+    /// Failed to read the config files from disk
+    #[error("Failed to read the config files from disk")]
+    ConfigFromDiskFailed(#[source] io::Error),
+    // TODO: either get rid of this or use it
+    //
+    // Headless client failed to launch
+    // #[error("The headless client failed required for conversion to launch.")]
+    // HeadlessClientLaunchFailed,
+    // /// The curl command was not found in path
     #[error(
         "`curl` was not found on your PATH.\n\
         Please either install curl or download the files manually:\n\
@@ -52,15 +57,6 @@ pub enum Error {
     /// The output of the curl wasn't a valid utf-8 string
     #[error("The output of the curl command for the url `{0} was invalid:\n{1}")]
     CurlOutputInvalid(String, std::string::FromUtf8Error),
-    /// Failed to create the config
-    #[error("Failed to create the config")]
-    ConfigCreationFailed(#[source] io::Error),
-    /// Failed to start watching the config dir
-    #[error("Failed to watch the config dir")]
-    WatchConfigDirFailed(#[source] notify::Error),
-    /// Failed to launch the server
-    #[error("Failed to launch the backend server")]
-    ServerLaunchFailed(#[source] io::Error),
     /// Failed to register the ctrl_c signal
     #[error("Failed to register the ctrl_c signal to wait for exit")]
     SignalFailed(#[source] io::Error),
