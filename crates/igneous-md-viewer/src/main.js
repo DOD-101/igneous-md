@@ -125,11 +125,21 @@ const ws = new WebSocket(
   `ws://${window.location.host}/ws/?md_path=${params.get("path")}&update_rate=${params.get("update_rate")}`,
 );
 
-if (params.has("export")) {
-  // TODO: get rid of this fragile timing (also see main.rs)
-  setTimeout(() => {
-    window.webkit.messageHandlers.exportPDF.postMessage(params.get("export"));
-  }, 100);
+const exportPath = params.get("export");
+
+let exportStarted = false;
+let contentReady = false;
+let cssReady = false;
+
+function maybeStartExport() {
+  if (!exportPath || exportStarted || !contentReady || !cssReady) return;
+
+  exportStarted = true;
+
+  // Give MathJax a chance to finish typesetting before printing
+  MathJax.typesetPromise().then(() => {
+    window.webkit.messageHandlers.exportPDF.postMessage(exportPath);
+  });
 }
 
 function safeParse(jsonString) {
@@ -154,6 +164,8 @@ ws.onmessage = (event) => {
   switch (tag) {
     case "CssUpdate":
       styleSheet.textContent = content.css;
+      cssReady = true;
+      maybeStartExport();
       break;
     case "HtmlUpdate":
       {
@@ -178,6 +190,8 @@ ws.onmessage = (event) => {
           }
         });
         MathJax.typeset();
+        contentReady = true;
+        maybeStartExport();
       }
       break;
     case "Export":

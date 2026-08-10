@@ -40,7 +40,7 @@ fn main() {
         return;
     }
 
-    let viewer = Viewer::new(addr, false);
+    let viewer = Viewer::new(addr, false, None);
 
     viewer.start();
 }

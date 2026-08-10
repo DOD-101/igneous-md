@@ -29,12 +29,13 @@ pub enum Error {
     /// Failed to read the config files from disk
     #[error("Failed to read the config files from disk")]
     ConfigFromDiskFailed(#[source] io::Error),
-    // TODO: either get rid of this or use it
-    //
-    // Headless client failed to launch
-    // #[error("The headless client failed required for conversion to launch.")]
-    // HeadlessClientLaunchFailed,
-    // /// The curl command was not found in path
+    /// The viewer signaled that it failed to export the markdown to pdf
+    #[error("Failed to export markdown to pdf")]
+    ExportFailed,
+    /// The viewer did not signal a result within [crate::EXPORT_TIMEOUT]
+    #[error("Timed out waiting for the viewer to finish exporting")]
+    ExportTimeout,
+    /// The `curl` command was not found in path
     #[error(
         "`curl` was not found on your PATH.\n\
         Please either install curl or download the files manually:\n\

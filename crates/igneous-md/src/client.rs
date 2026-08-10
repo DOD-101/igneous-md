@@ -189,12 +189,10 @@ impl Client {
             ClientMsg::ChangeCss { index, relative } => {
                 self.change_current_css_index(index, relative);
 
-                if let Some(css) = self.current_css() {
-                    return ServerMsg::CssUpdate { css };
-                }
-
-                ServerMsg::Error {
-                    msg: "Failed to change css.".to_string(),
+                // If there are no css entries, still respond with an (empty) update so that clients
+                // waiting on a css update don't hang.
+                ServerMsg::CssUpdate {
+                    css: self.current_css().unwrap_or_default(),
                 }
             }
             ClientMsg::RequestExport => ServerMsg::Export {

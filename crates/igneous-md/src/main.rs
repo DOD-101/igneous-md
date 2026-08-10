@@ -30,7 +30,8 @@ use crate::{config::Config, errors::AppResult, paths::attempt_delete_port_file};
 
 #[cfg(feature = "viewer")]
 use {
-    igneous_md_viewer::{Address, Viewer},
+    igneous_md_viewer::{Address, ExportResult, Viewer},
+    std::sync::mpsc,
     std::thread,
 };
 
@@ -38,7 +39,14 @@ use std::{
     io::{self, Write},
     time::Duration,
 };
-use tokio::{net::TcpListener, task::AbortHandle, time::sleep};
+use tokio::{
+    net::TcpListener,
+    task::{AbortHandle, spawn_blocking},
+    time::timeout,
+};
+
+/// How long to wait for the viewer to finish exporting before giving up
+const EXPORT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[tokio::main]
 async fn main() -> AppResult {
@@ -82,6 +90,8 @@ async fn run() -> Result<(), Error> {
                 p
             });
 
+            let (export_tx, export_rx) = mpsc::channel();
+
             thread::spawn(move || {
                 let export_str: String =
                     form_urlencoded::byte_serialize(export_path.to_string_lossy().as_bytes())
@@ -94,19 +104,22 @@ async fn run() -> Result<(), Error> {
                     path.as_str(),
                     Some(&export_str),
                 );
-                let client = Viewer::new(address, true);
+                let client = Viewer::new(address, true, Some(export_tx));
 
                 client.start()
             });
 
-            // TODO: get rid of this fragile timing (also see main.js)
+            // wait for the viewer to signal that printing has completed
+            let export_result =
+                timeout(EXPORT_TIMEOUT, spawn_blocking(move || export_rx.recv())).await;
 
-            // wait for printing to complete
-            sleep(Duration::from_secs(1)).await;
-
-            // TODO: add check if printing succeeded
-
-            Ok(())
+            match export_result {
+                Ok(Ok(Ok(ExportResult::Success))) => Ok(()),
+                Ok(Ok(Ok(ExportResult::Failure))) | Ok(Ok(Err(_))) | Ok(Err(_)) => {
+                    Err(Error::ExportFailed)
+                }
+                Err(_) => Err(Error::ExportTimeout),
+            }
         }
         Action::GenerateConfig { overwrite } => {
             if paths::css_dir(&cli.config).exists() && !overwrite {
@@ -233,7 +246,7 @@ async fn run() -> Result<(), Error> {
                         path.as_str(),
                         None,
                     );
-                    let client = Viewer::new(address, false);
+                    let client = Viewer::new(address, false, None);
 
                     client.start()
                 }))

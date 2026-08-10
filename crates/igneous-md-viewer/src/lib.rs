@@ -19,14 +19,35 @@ pub struct Viewer<'a> {
     addr: Address<'a>,
     /// If the viewer should run in headless-mode (aka. not be seen by users)
     headless: bool,
+    /// Sender used to signal the result of an export operation to the rest of the application
+    ///
+    /// If [None] the viewer will not signal anyone.
+    export_signal: Option<std::sync::mpsc::Sender<ExportResult>>,
+}
+
+/// Result of an export operation, signaled by the [Viewer] to the rest of the application.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportResult {
+    /// The export completed successfully
+    Success,
+    /// The export failed
+    Failure,
 }
 
 const APP_ID: &str = "dod.igneous-md.viewer";
 
 impl<'a> Viewer<'a> {
     /// Create a new [Viewer]
-    pub fn new(addr: Address<'a>, headless: bool) -> Self {
-        Viewer { addr, headless }
+    pub fn new(
+        addr: Address<'a>,
+        headless: bool,
+        export_signal: Option<std::sync::mpsc::Sender<ExportResult>>,
+    ) -> Self {
+        Viewer {
+            addr,
+            headless,
+            export_signal,
+        }
     }
 
     /// Start the viewer
@@ -35,15 +56,21 @@ impl<'a> Viewer<'a> {
 
         let addr = self.addr.to_string();
         let headless = self.headless;
+        let export_signal = self.export_signal.clone();
         app.connect_activate(move |app| {
-            Self::build_ui(&addr, headless, app);
+            Self::build_ui(&addr, headless, app, export_signal.clone());
         });
 
         app.run_with_args::<&str>(&[]);
     }
 
     /// Build the actual GTK UI
-    fn build_ui(addr: &str, headless: bool, app: &Application) {
+    fn build_ui(
+        addr: &str,
+        headless: bool,
+        app: &Application,
+        export_signal: Option<std::sync::mpsc::Sender<ExportResult>>,
+    ) {
         let window = ApplicationWindow::builder()
             .application(app)
             .title("igneous-md viewer")
@@ -93,7 +120,7 @@ impl<'a> Viewer<'a> {
 
         let web_view_clone = view.clone();
         content.connect_script_message_received(None, move |_manager, value| {
-            Self::to_pdf_handler(&web_view_clone, &value.to_string());
+            Self::to_pdf_handler(&web_view_clone, &value.to_string(), export_signal.clone());
         });
 
         window.set_child(Some(&view));
@@ -108,7 +135,11 @@ impl<'a> Viewer<'a> {
     }
 
     /// Export current webview content (the markdown) to pdf
-    fn to_pdf_handler(web_view: &WebView, path: &str) {
+    fn to_pdf_handler(
+        web_view: &WebView,
+        path: &str,
+        export_signal: Option<std::sync::mpsc::Sender<ExportResult>>,
+    ) {
         let print_settings = PrintSettings::new();
 
         print_settings.set_printer("Print to File");
@@ -130,12 +161,21 @@ impl<'a> Viewer<'a> {
             .build();
 
         let path_clone = path.to_owned();
+        let finished_signal = export_signal.clone();
         print_op.connect_finished(move |_| {
             println!("PDF exported successfully to {}!", path_clone);
+
+            if let Some(sender) = &finished_signal {
+                let _ = sender.send(ExportResult::Success);
+            }
         });
 
-        print_op.connect_failed(|_, error| {
+        print_op.connect_failed(move |_, error| {
             eprintln!("PDF export failed: {error}");
+
+            if let Some(sender) = &export_signal {
+                let _ = sender.send(ExportResult::Failure);
+            }
         });
 
         print_op.print();
