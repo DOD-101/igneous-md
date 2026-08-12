@@ -34,8 +34,6 @@ pub enum ExportResult {
     Failure,
 }
 
-const APP_ID: &str = "dod.igneous-md.viewer";
-
 impl<'a> Viewer<'a> {
     /// Create a new [Viewer]
     pub fn new(
@@ -52,7 +50,7 @@ impl<'a> Viewer<'a> {
 
     /// Start the viewer
     pub fn start(&self) {
-        let app = Application::builder().application_id(APP_ID).build();
+        let app = Application::builder().application_id(self.app_id()).build();
 
         let addr = self.addr.to_string();
         let headless = self.headless;
@@ -62,6 +60,19 @@ impl<'a> Viewer<'a> {
         });
 
         app.run_with_args::<&str>(&[]);
+    }
+
+    /// Unique GTK application id derived from the viewer's address.
+    ///
+    /// GTK [Application]s are single-instance per id (enforced over D-Bus), so
+    /// every viewer needs its own id or the second one would just "activate" the
+    /// first, resulting in all windows showing the same document.
+    fn app_id(&self) -> String {
+        use std::hash::{DefaultHasher, Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        self.addr.hash(&mut hasher);
+        format!("dod.igneous-md.viewer.id_{}", hasher.finish())
     }
 
     /// Build the actual GTK UI
@@ -77,7 +88,7 @@ impl<'a> Viewer<'a> {
             .visible(!headless)
             .build();
 
-        let context = WebContext::default().unwrap();
+        let context = WebContext::new();
         context.set_cache_model(CacheModel::DocumentBrowser);
         // TODO: Not sure this will behave properly with relative paths in all cases. Needs further
         // testing.
@@ -182,7 +193,7 @@ impl<'a> Viewer<'a> {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, Hash)]
 pub struct Address<'a> {
     host: &'a str,
     port: u16,
@@ -226,5 +237,51 @@ impl Display for Address<'_> {
                 .map(|s| format!("&export={}", s))
                 .unwrap_or_default(),
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn app_id_is_unique_per_document() {
+        let mk = |path: &str| {
+            Viewer::new(
+                Address::new("localhost", 8080, 1000, None, path, None),
+                false,
+                None,
+            )
+            .app_id()
+        };
+
+        assert_ne!(mk("/a.md"), mk("/b.md"));
+        assert_eq!(mk("/a.md"), mk("/a.md"));
+        assert_eq!(mk("a.md"), mk("a.md"));
+    }
+
+    #[test]
+    fn app_id_is_valid_dbus_name() {
+        let viewer = Viewer::new(
+            Address::new("localhost", 8080, 1000, None, "/home/user/notes.md", None),
+            false,
+            None,
+        );
+        let id = viewer.app_id();
+
+        assert!(id.len() <= 255);
+        assert!(id.contains('.'));
+        for element in id.split('.') {
+            assert!(!element.is_empty());
+            assert!(
+                element.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_'),
+                "invalid element {element:?} in {id:?}"
+            );
+            assert!(
+                element
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            );
+        }
     }
 }
