@@ -1,14 +1,9 @@
 //! Module containing the [Client] struct.
 //!
 //! For more information see [Client]
-use crate::{
-    paths,
-    ws::{
-        handshake::WsQueryParams,
-        msg::{AsMsg as _, ClientMsg, ServerMsg},
-    },
-};
+use crate::{handshake::WsQueryParams, paths};
 use futures_util::{SinkExt as _, StreamExt as _, stream::SplitSink};
+use igneous_md_protocol::{AsMsg as _, ClientMsg, ServerMsg};
 use kuchikiki::traits::*;
 use std::{
     io,
@@ -41,7 +36,7 @@ pub struct Client {
     md_path: PathBuf,
     /// First value [`Self::md_path`] was set to
     ///
-    /// Needed to allow for [`crate::ws::msg::ClientMsg::RedirectDefault`]
+    /// Needed to allow for [`igneous_md_protocol::ClientMsg::RedirectDefault`]
     initial_md_path: PathBuf,
     /// Last time the file was modified
     last_modified: SystemTime,

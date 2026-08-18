@@ -1216,6 +1216,7 @@ dependencies = [
  "futures-util",
  "git-version",
  "http",
+ "igneous-md-protocol",
  "igneous-md-viewer",
  "itertools 0.13.0",
  "kuchikiki",
@@ -1231,6 +1232,16 @@ dependencies = [
  "strum",
  "thiserror",
  "tokio",
+ "tokio-tungstenite",
+]
+
+[[package]]
+name = "igneous-md-protocol"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strum",
  "tokio-tungstenite",
 ]
 

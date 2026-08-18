@@ -23,12 +23,10 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 use crate::{
     client::{Client, ClientHandle, ClientInputMsg},
     config::Config,
+    handshake::{HandshakeError, perform_handshake},
     paths,
-    ws::{
-        handshake::{HandshakeError, perform_handshake},
-        msg::{AsMsg, ClientMsg, ServerMsg},
-    },
 };
+use igneous_md_protocol::{AsMsg, ClientMsg, ServerMsg};
 
 /// Server facilitating communication to the clients
 #[derive(Debug)]

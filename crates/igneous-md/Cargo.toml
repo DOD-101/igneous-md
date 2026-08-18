@@ -16,6 +16,7 @@ default = ["viewer"]
 viewer = ["dep:igneous-md-viewer"]
 
 [dependencies]
+igneous-md-protocol = { workspace = true }
 igneous-md-viewer = { workspace = true, optional = true }
 chrono = { version = "0.4.38", features = ["clock"] }
 clap.workspace = true

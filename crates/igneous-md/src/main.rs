@@ -19,9 +19,9 @@ mod client;
 mod config;
 mod convert;
 mod errors;
+mod handshake;
 mod paths;
 mod server;
-mod ws;
 
 use cli::{Action, Cli};
 use errors::Error;
