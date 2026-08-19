@@ -17,6 +17,8 @@ pub trait AsMsg {
 
 /// Possible messages sent by the server
 #[derive(Serialize, Deserialize, Debug, IntoStaticStr, PartialEq, Eq, EnumIs)]
+#[cfg_attr(feature = "export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export", ts(export))]
 #[serde(tag = "t", content = "c")]
 pub enum ServerMsg {
     /// Updated CSS for the html content
@@ -32,6 +34,7 @@ pub enum ServerMsg {
     /// Request the client export the current html to the specified path
     Export {
         /// The path to export to
+        #[cfg_attr(feature = "export", ts(type = "string"))]
         path: PathBuf,
     },
     /// Server is shutting down
@@ -69,6 +72,8 @@ impl ServerMsg {
 
 /// Possible messages sent by the client
 #[derive(Serialize, Deserialize, Debug, IntoStaticStr, PartialEq, Eq, EnumIs)]
+#[cfg_attr(feature = "export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export", ts(export))]
 #[serde(tag = "t", content = "c")]
 pub enum ClientMsg {
     /// Request a new stylesheet
@@ -83,6 +88,7 @@ pub enum ClientMsg {
     /// Request for the server to change the md file being viewed
     Redirect {
         /// Where the redirect is headed
+        #[cfg_attr(feature = "export", ts(type = "string"))]
         path: PathBuf,
     },
     /// Request for the server to change the md file being viewed back to the default

@@ -4,6 +4,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: crates/igneous-md-protocol/bindings/
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
@@ -43,3 +44,9 @@ repos:
         language: system
         pass_filenames: false
         files: "^Cargo.toml|\\.rs$"
+      - id: ts-bindings
+        name: TS-bindings
+        entry: ./ts-bindings.sh
+        language: system
+        pass_filenames: false
+        files: "^crates/igneous-md-protocol/"
