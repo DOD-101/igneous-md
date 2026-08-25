@@ -50,3 +50,9 @@ repos:
         language: system
         pass_filenames: false
         files: "^crates/igneous-md-protocol/"
+      - id: tsc
+        name: TypeScript Check
+        entry: sh -c 'cd crates/igneous-md-viewer && tsc --noEmit'
+        language: system
+        pass_filenames: false
+        files: "\\.ts$"

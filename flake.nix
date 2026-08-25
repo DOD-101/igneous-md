@@ -196,8 +196,11 @@
             cargo
             rustc
             prek
-            typos-lsp
             curl
+
+            typos-lsp
+            typescript-language-server
+            typescript
           ];
 
           shellHook = ''

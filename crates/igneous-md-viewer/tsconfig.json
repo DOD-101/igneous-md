@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false,
+    "paths": {
+      "igneous-md-protocol/bindings/*": ["../../igneous-md-protocol/bindings/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../igneous-md-protocol/bindings/**/*.ts"
+  ]
+}

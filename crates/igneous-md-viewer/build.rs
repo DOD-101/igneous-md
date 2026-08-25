@@ -89,7 +89,7 @@ fn main() {
         Command::new("esbuild")
             .args([
                 "--bundle",
-                "./src/main.js",
+                "./src/main.ts",
                 format!("--outfile={}", dist_location.display()).as_str(),
                 "--minify"
             ])
