@@ -203,7 +203,8 @@ async fn run() -> Result<(), Error> {
                         }
                     }
                     Err(e) => {
-                        log::warn!("Could not read {}: {e}", paths::SERVER_PORT_FILE);
+                        log::info!("No port file found.");
+                        log::debug!("While reading {}: {e}", paths::SERVER_PORT_FILE);
                     }
                 }
             }
