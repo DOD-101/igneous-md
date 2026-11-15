@@ -29,6 +29,14 @@
         inherit (pkgs) lib;
 
         naersk' = pkgs.callPackage naersk { };
+        packages' = {
+          igneous-md = {
+            completionsCmd = "completions";
+          };
+          igneous-md-viewer = {
+            completionsCmd = "--completions";
+          };
+        };
 
         parseVendorEnv =
           file:
@@ -81,6 +89,7 @@
             esbuild
             git
             wrapGAppsHook4
+            installShellFiles
           ];
 
           IGNEOUS_VENDOR_ONLY = "1";
@@ -94,27 +103,39 @@
         };
 
         buildWorkspacePackage =
-          pname: release:
+          name:
+          { completionsCmd }:
+          release:
           naersk'.buildPackage (
             commonArgs
             // {
-              name = pname;
-              inherit release;
+              inherit name release;
               cargoBuildOptions =
                 old:
                 old
                 ++ [
                   "-p"
-                  pname
+                  name
                 ];
+
+              postInstall = lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
+                installShellCompletion --cmd ${name} \
+                  --bash <($out/bin/${name} ${completionsCmd} bash) \
+                  --fish <($out/bin/${name} ${completionsCmd} fish) \
+                  --zsh  <($out/bin/${name} ${completionsCmd} zsh)
+              '';
             }
           );
 
-        igneous-md = buildWorkspacePackage "igneous-md" false;
-        igneous-md-release = buildWorkspacePackage "igneous-md" true;
-
-        igneous-md-viewer = buildWorkspacePackage "igneous-md-viewer" false;
-        igneous-md-viewer-release = buildWorkspacePackage "igneous-md-viewer" true;
+        # contains debug and release variants for each package
+        workspacePackages =
+          let
+            variants = lib.mapAttrsToList (name: val: [
+              (lib.nameValuePair name (buildWorkspacePackage name val false))
+              (lib.nameValuePair "${name}-release" (buildWorkspacePackage name val true))
+            ]) packages';
+          in
+          lib.listToAttrs (lib.flatten variants);
 
         buildCheck =
           name: mode: cargoExtraArgs: release:
@@ -169,9 +190,11 @@
       in
       {
         checks = {
-          inherit
+          inherit (workspacePackages)
             igneous-md
             igneous-md-viewer
+            ;
+          inherit
             workspace-clippy
             workspace-doc
             workspace-doc-test
@@ -180,14 +203,8 @@
             ;
         };
 
-        packages = rec {
-          inherit
-            igneous-md
-            igneous-md-release
-            igneous-md-viewer
-            igneous-md-viewer-release
-            ;
-          default = igneous-md;
+        packages = workspacePackages // {
+          default = workspacePackages.igneous-md;
         };
 
         devShells.default = pkgs.mkShell {

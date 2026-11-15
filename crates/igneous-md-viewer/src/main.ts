@@ -11,6 +11,7 @@ window.MathJax = {
   },
   startup: {
     ready() {
+      // BUG: seems to fail on very large documents, try making this async
       MathJax.startup!.defaultReady!();
       processMathCodeElements();
       MathJax.typeset!();

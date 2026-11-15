@@ -19,8 +19,12 @@ fn main() {
             Cli::command().get_name(),
             &mut std::io::stdout(),
         );
+        return;
     }
 
+    let path = cli
+        .path
+        .expect("Since --completions was not set this must be set.");
     let addr = Address::new(
         "localhost",
         cli.port
@@ -28,7 +32,7 @@ fn main() {
             .expect("Failed to get port of server."),
         cli.update_rate,
         cli.css.as_deref(),
-        cli.path.as_str(),
+        path.as_str(),
         None,
     );
 
@@ -57,7 +61,8 @@ fn read_port() -> Result<u16, Box<dyn Error>> {
 /// Used to connect to an already running igneous-md server.
 pub struct Cli {
     /// Path of the md file to view
-    pub path: String,
+    #[arg(required_unless_present = "completions")]
+    pub path: Option<String>,
     /// Port of the server
     ///
     /// If none is supplied the viewer will attempt to read `/tmp/igneous-md` where the server
